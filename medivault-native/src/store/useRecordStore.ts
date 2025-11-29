@@ -1,0 +1,413 @@
+/**
+ * MediVault AI - Record Store
+ * Zustand store for managing medical records state with Firebase integration
+ */
+
+import { create } from 'zustand';
+import { MedicalRecord, MedicationWithSource, Medication } from '../types';
+import {
+  subscribeToRecords,
+  createRecord,
+  deleteRecord as firebaseDeleteRecord,
+  updateRecord as firebaseUpdateRecord,
+  updateMedicationProof as firebaseUpdateMedicationProof,
+  updateMedicationPillCount,
+  syncLocalRecordsToFirebase,
+  getUserRecords,
+} from '../services/firebaseDatabaseService';
+import { storageService } from '../services/storageService';
+
+/**
+ * Record store state interface
+ */
+interface RecordState {
+  // Data
+  records: MedicalRecord[];
+  selectedRecord: MedicalRecord | null;
+  
+  // User context
+  userId: string | null;
+  
+  // Loading states
+  isLoading: boolean;
+  isAnalyzing: boolean;
+  isSyncing: boolean;
+  error: string | null;
+  
+  // Subscription management
+  unsubscribe: (() => void) | null;
+  
+  // Actions
+  initializeWithUser: (userId: string) => Promise<void>;
+  cleanup: () => void;
+  loadRecords: () => Promise<void>;
+  addRecord: (record: MedicalRecord) => Promise<void>;
+  deleteRecord: (recordId: string) => Promise<void>;
+  updateRecord: (recordId: string, updates: Partial<MedicalRecord>) => Promise<void>;
+  setSelectedRecord: (record: MedicalRecord | null) => void;
+  setAnalyzing: (isAnalyzing: boolean) => void;
+  setError: (error: string | null) => void;
+  clearError: () => void;
+  updateMedicationProof: (
+    recordId: string, 
+    medicationName: string, 
+    proofImage: string
+  ) => Promise<void>;
+  decrementPillCount: (
+    recordId: string,
+    medicationName: string
+  ) => Promise<void>;
+  syncLocalData: () => Promise<void>;
+  
+  // Computed getters
+  getLabReports: () => MedicalRecord[];
+  getAllMedications: () => MedicationWithSource[];
+  getRecordById: (id: string) => MedicalRecord | undefined;
+  getStats: () => {
+    totalRecords: number;
+    labReports: number;
+    totalMedications: number;
+  };
+}
+
+/**
+ * Main record store with Firebase integration
+ */
+export const useRecordStore = create<RecordState>((set, get) => ({
+  // Initial state
+  records: [],
+  selectedRecord: null,
+  userId: null,
+  isLoading: false,
+  isAnalyzing: false,
+  isSyncing: false,
+  error: null,
+  unsubscribe: null,
+
+  /**
+   * Initialize store with authenticated user and subscribe to real-time updates
+   */
+  initializeWithUser: async (userId: string) => {
+    const { unsubscribe: existingUnsubscribe } = get();
+    
+    // Cleanup existing subscription if any
+    if (existingUnsubscribe) {
+      existingUnsubscribe();
+    }
+    
+    set({ isLoading: true, userId, error: null });
+    
+    try {
+      // First, sync any local data to Firebase
+      await get().syncLocalData();
+      
+      // Subscribe to real-time updates from Firebase
+      const unsubscribe = subscribeToRecords(
+        userId,
+        (records) => {
+          set({ records, isLoading: false });
+        },
+        (error) => {
+          console.error('Firebase subscription error:', error);
+          set({ error: 'Failed to sync with cloud. Working offline.', isLoading: false });
+        }
+      );
+      
+      set({ unsubscribe });
+    } catch (error) {
+      console.error('Error initializing records:', error);
+      set({ 
+        isLoading: false, 
+        error: 'Failed to initialize records' 
+      });
+    }
+  },
+
+  /**
+   * Cleanup subscriptions (call on logout)
+   */
+  cleanup: () => {
+    const { unsubscribe } = get();
+    if (unsubscribe) {
+      unsubscribe();
+    }
+    set({
+      records: [],
+      selectedRecord: null,
+      userId: null,
+      unsubscribe: null,
+      error: null,
+    });
+  },
+
+  /**
+   * Load records manually (for refresh)
+   */
+  loadRecords: async () => {
+    const { userId } = get();
+    
+    if (!userId) {
+      set({ error: 'User not authenticated' });
+      return;
+    }
+    
+    set({ isLoading: true, error: null });
+    
+    try {
+      const records = await getUserRecords(userId);
+      set({ records, isLoading: false });
+    } catch (error) {
+      console.error('Error loading records:', error);
+      set({ 
+        isLoading: false, 
+        error: 'Failed to load records' 
+      });
+    }
+  },
+
+  /**
+   * Add a new record to Firebase
+   */
+  addRecord: async (record) => {
+    const { userId } = get();
+    
+    if (!userId) {
+      set({ error: 'User not authenticated' });
+      throw new Error('User not authenticated');
+    }
+    
+    try {
+      // Save to Firebase - real-time subscription will update the store
+      await createRecord(userId, record);
+      
+      // Also save to local storage as backup
+      await storageService.saveRecord(record);
+      
+      set({ error: null });
+    } catch (error) {
+      console.error('Error adding record:', error);
+      set({ error: 'Failed to save record' });
+      throw error;
+    }
+  },
+
+  /**
+   * Delete a record from Firebase
+   */
+  deleteRecord: async (recordId) => {
+    const { userId } = get();
+    
+    if (!userId) {
+      set({ error: 'User not authenticated' });
+      throw new Error('User not authenticated');
+    }
+    
+    try {
+      // Delete from Firebase - real-time subscription will update the store
+      await firebaseDeleteRecord(userId, recordId);
+      
+      // Also delete from local storage
+      await storageService.deleteRecord(recordId);
+      
+      // Clear selected record if it was deleted
+      const { selectedRecord } = get();
+      if (selectedRecord?.id === recordId) {
+        set({ selectedRecord: null });
+      }
+      
+      set({ error: null });
+    } catch (error) {
+      console.error('Error deleting record:', error);
+      set({ error: 'Failed to delete record' });
+      throw error;
+    }
+  },
+
+  /**
+   * Update a record in Firebase
+   */
+  updateRecord: async (recordId, updates) => {
+    const { userId } = get();
+    
+    if (!userId) {
+      set({ error: 'User not authenticated' });
+      throw new Error('User not authenticated');
+    }
+    
+    try {
+      // Update in Firebase - real-time subscription will update the store
+      await firebaseUpdateRecord(userId, recordId, updates);
+      
+      // Also update local storage
+      await storageService.updateRecord(recordId, updates);
+      
+      set({ error: null });
+    } catch (error) {
+      console.error('Error updating record:', error);
+      set({ error: 'Failed to update record' });
+      throw error;
+    }
+  },
+
+  // Set selected record
+  setSelectedRecord: (record) => {
+    set({ selectedRecord: record });
+  },
+
+  // Set analyzing state
+  setAnalyzing: (isAnalyzing) => {
+    set({ isAnalyzing });
+  },
+
+  // Set error
+  setError: (error) => {
+    set({ error });
+  },
+
+  // Clear error
+  clearError: () => {
+    set({ error: null });
+  },
+
+  /**
+   * Update medication proof image in Firebase
+   */
+  updateMedicationProof: async (recordId, medicationName, proofImage) => {
+    const { userId } = get();
+    
+    if (!userId) {
+      set({ error: 'User not authenticated' });
+      throw new Error('User not authenticated');
+    }
+    
+    try {
+      // Update in Firebase - real-time subscription will update the store
+      await firebaseUpdateMedicationProof(userId, recordId, medicationName, proofImage);
+      
+      // Also update local storage
+      await storageService.updateMedicationProof(recordId, medicationName, proofImage);
+      
+      set({ error: null });
+    } catch (error) {
+      console.error('Error updating medication proof:', error);
+      set({ error: 'Failed to save proof image' });
+      throw error;
+    }
+  },
+
+  /**
+   * Decrement pill count for a medication (when taken)
+   */
+  decrementPillCount: async (recordId, medicationName) => {
+    const { userId, records } = get();
+    
+    if (!userId) {
+      set({ error: 'User not authenticated' });
+      throw new Error('User not authenticated');
+    }
+    
+    try {
+      // Find the record and medication to calculate new count
+      const record = records.find(r => r.id === recordId);
+      if (!record) {
+        throw new Error('Record not found');
+      }
+      
+      const medication = record.analysis.medications.find(m => m.name === medicationName);
+      if (!medication) {
+        throw new Error('Medication not found');
+      }
+      
+      const totalPills = medication.totalPills || 30;
+      const currentRemaining = medication.pillsRemaining ?? totalPills;
+      const newRemaining = Math.max(0, currentRemaining - 1);
+      
+      // Update in Firebase
+      await updateMedicationPillCount(userId, recordId, medicationName, newRemaining);
+      
+      // Also update local storage
+      const updatedRecord = {
+        ...record,
+        analysis: {
+          ...record.analysis,
+          medications: record.analysis.medications.map((med) =>
+            med.name === medicationName
+              ? { ...med, totalPills, pillsRemaining: newRemaining }
+              : med
+          ),
+        },
+      };
+      await storageService.updateRecord(recordId, updatedRecord);
+      
+      set({ error: null });
+    } catch (error) {
+      console.error('Error updating pill count:', error);
+      set({ error: 'Failed to update pill count' });
+      throw error;
+    }
+  },
+
+  /**
+   * Sync local data to Firebase (migration helper)
+   */
+  syncLocalData: async () => {
+    const { userId } = get();
+    
+    if (!userId) {
+      return;
+    }
+    
+    set({ isSyncing: true });
+    
+    try {
+      // Get local records
+      const localRecords = await storageService.getRecords();
+      
+      if (localRecords.length > 0) {
+        // Sync to Firebase
+        await syncLocalRecordsToFirebase(userId, localRecords);
+      }
+      
+      set({ isSyncing: false });
+    } catch (error) {
+      console.error('Error syncing local data:', error);
+      set({ isSyncing: false });
+    }
+  },
+
+  // Get all lab reports
+  getLabReports: () => {
+    return get().records.filter((r) => r.analysis.documentType === 'Lab Report');
+  },
+
+  // Get all medications from all records
+  getAllMedications: () => {
+    return get().records.flatMap((record) =>
+      record.analysis.medications.map((med) => ({
+        ...med,
+        sourceId: record.id,
+        sourceDate: record.analysis.date,
+      }))
+    );
+  },
+
+  // Get record by ID
+  getRecordById: (id) => {
+    return get().records.find((r) => r.id === id);
+  },
+
+  // Get statistics
+  getStats: () => {
+    const records = get().records;
+    return {
+      totalRecords: records.length,
+      labReports: records.filter((r) => r.analysis.documentType === 'Lab Report').length,
+      totalMedications: records.reduce(
+        (acc, r) => acc + r.analysis.medications.length,
+        0
+      ),
+    };
+  },
+}));
+
+export default useRecordStore;

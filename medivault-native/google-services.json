@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "837900343682",
+    "firebase_url": "https://medi-vault-c9157-default-rtdb.firebaseio.com",
+    "project_id": "medi-vault-c9157",
+    "storage_bucket": "medi-vault-c9157.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:837900343682:android:61c7066b3f113e944f579b",
+        "android_client_info": {
+          "package_name": "com.horse.medivault"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "837900343682-puani79d57nh39unt68nektbos49vv6f.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCFr4QifhPZUVwZQhtFBFKFFWOid-1p0e4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "837900343682-puani79d57nh39unt68nektbos49vv6f.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,64 @@
+{
+  "expo": {
+    "name": "MediVault AI",
+    "slug": "medivault-ai",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "medivault",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#0F766E"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.medivault.ai",
+      "infoPlist": {
+        "NSCameraUsageDescription": "MediVault needs camera access to scan medical documents",
+        "NSPhotoLibraryUsageDescription": "MediVault needs photo library access to upload medical documents",
+        "NSCalendarsUsageDescription": "MediVault needs calendar access to add medication reminders",
+        "NSCalendarsFullAccessUsageDescription": "MediVault needs full calendar access to create and manage medication reminder events"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0F766E"
+      },
+      "package": "com.horse.medivault",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.RECEIVE_BOOT_COMPLETED"
+      ]
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-image-picker",
+      "expo-asset",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "MediVault needs calendar access to add medication reminders that help you stay on track with your prescriptions."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#0D9488",
+          "sounds": [],
+          "mode": "production"
+        }
+      ]
+    ]
+  }
+}

@@ -1,0 +1,422 @@
+/**
+ * MediVault AI - Schedule Screen
+ * Timeline view for medication schedule with pill confirmation
+ */
+
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Clock, Pill, Tablets, Check } from 'lucide-react-native';
+
+import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '../theme';
+import { useRecordStore } from '../store/useRecordStore';
+import { getDayName, getDayNumber, getFullDateString } from '../utils/dateUtils';
+import { MainTabScreenProps } from '../navigation/types';
+import { MedicationWithSource } from '../types';
+
+type Props = MainTabScreenProps<'Schedule'>;
+
+// Track which medications have been taken today
+interface TakenMedication {
+  medicationName: string;
+  timeSlot: string;
+  date: string;
+}
+
+const ScheduleScreen: React.FC<Props> = () => {
+  const insets = useSafeAreaInsets();
+  const [selectedDay, setSelectedDay] = useState(0);
+  const { getAllMedications, decrementPillCount } = useRecordStore();
+  const [takenMeds, setTakenMeds] = useState<TakenMedication[]>([]);
+  
+  const medications = getAllMedications();
+  const currentDate = getFullDateString(selectedDay);
+
+  // Check if a medication has been taken for a specific time slot
+  const isMedicationTaken = (medName: string, timeSlot: string): boolean => {
+    return takenMeds.some(
+      (taken) => 
+        taken.medicationName === medName && 
+        taken.timeSlot === timeSlot && 
+        taken.date === currentDate
+    );
+  };
+
+  // Handle confirming medication taken
+  const handleConfirmMedication = async (med: MedicationWithSource, timeSlot: string) => {
+    const alreadyTaken = isMedicationTaken(med.name, timeSlot);
+    
+    if (alreadyTaken) {
+      Alert.alert(
+        'Already Taken',
+        `You've already marked ${med.name} as taken for this time slot.`
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Confirm Medication',
+      `Mark ${med.name} (${med.dosage}) as taken?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Confirm',
+          onPress: async () => {
+            try {
+              // Decrement pill count in store
+              await decrementPillCount(med.sourceId, med.name);
+              
+              // Mark as taken for this time slot
+              setTakenMeds((prev) => [
+                ...prev,
+                { medicationName: med.name, timeSlot, date: currentDate },
+              ]);
+            } catch (error) {
+              Alert.alert('Error', 'Failed to update medication status');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  return (
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: insets.top + spacing['4'] },
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.title}>Schedule</Text>
+        <Text style={styles.subtitle}>{currentDate}</Text>
+      </View>
+
+      {/* Calendar Strip */}
+      <View style={styles.calendarStrip}>
+        {[-2, -1, 0, 1, 2].map((offset) => (
+          <TouchableOpacity
+            key={offset}
+            style={[
+              styles.dayButton,
+              selectedDay === offset && styles.dayButtonActive,
+            ]}
+            onPress={() => setSelectedDay(offset)}
+          >
+            <Text
+              style={[
+                styles.dayName,
+                selectedDay === offset && styles.dayNameActive,
+              ]}
+            >
+              {getDayName(offset)}
+            </Text>
+            <Text
+              style={[
+                styles.dayNumber,
+                selectedDay === offset && styles.dayNumberActive,
+              ]}
+            >
+              {getDayNumber(offset)}
+            </Text>
+            {offset === 0 && selectedDay !== 0 && (
+              <View style={styles.todayDot} />
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Timeline */}
+      <View style={styles.timeline}>
+        <View style={styles.timelineHeader}>
+          <Clock size={18} color={colors.text.primary} />
+          <Text style={styles.timelineTitle}>Timeline</Text>
+        </View>
+
+        {medications.length === 0 ? (
+          <View style={styles.emptyTimeline}>
+            <Text style={styles.emptyText}>No active medications scheduled.</Text>
+          </View>
+        ) : (
+          <>
+            {/* Morning Slot */}
+            <View style={[styles.timeSlot, { borderLeftColor: colors.orange[300] }]}>
+              <View style={styles.timeLabel}>
+                <Text style={styles.time}>8:00</Text>
+                <Text style={styles.period}>AM</Text>
+              </View>
+              <View style={styles.timeContent}>
+                {medications.map((med, i) => {
+                  const taken = isMedicationTaken(med.name, 'morning');
+                  return (
+                    <View key={i} style={styles.medItem}>
+                      <View style={[styles.medItemIcon, { backgroundColor: colors.blue[50] }]}>
+                        <Pill size={14} color={colors.blue[500]} />
+                      </View>
+                      <View style={styles.medItemText}>
+                        <Text style={[styles.medItemName, taken && styles.medItemNameTaken]}>
+                          {med.name}
+                        </Text>
+                        <Text style={styles.medItemDose}>{med.dosage} • With Breakfast</Text>
+                      </View>
+                      <TouchableOpacity 
+                        style={[styles.checkbox, taken && styles.checkboxChecked]}
+                        onPress={() => handleConfirmMedication(med, 'morning')}
+                        disabled={taken}
+                      >
+                        {taken && <Check size={14} color={colors.white} />}
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Afternoon Slot */}
+            <View style={[styles.timeSlot, { borderLeftColor: colors.blue[500] }]}>
+              <View style={styles.timeLabel}>
+                <Text style={styles.time}>1:00</Text>
+                <Text style={styles.period}>PM</Text>
+              </View>
+              <View style={styles.timeContent}>
+                {medications.slice(0, Math.ceil(medications.length / 2)).map((med, i) => {
+                  const taken = isMedicationTaken(med.name, 'afternoon');
+                  return (
+                    <View key={i} style={styles.medItem}>
+                      <View style={[styles.medItemIcon, { backgroundColor: colors.blue[50] }]}>
+                        <Tablets size={14} color={colors.blue[500]} />
+                      </View>
+                      <View style={styles.medItemText}>
+                        <Text style={[styles.medItemName, taken && styles.medItemNameTaken]}>
+                          {med.name}
+                        </Text>
+                        <Text style={styles.medItemDose}>{med.dosage} • After Lunch</Text>
+                      </View>
+                      <TouchableOpacity 
+                        style={[styles.checkbox, taken && styles.checkboxChecked]}
+                        onPress={() => handleConfirmMedication(med, 'afternoon')}
+                        disabled={taken}
+                      >
+                        {taken && <Check size={14} color={colors.white} />}
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+
+            {/* Evening Slot */}
+            <View style={[styles.timeSlot, { borderLeftColor: colors.indigo[500] }]}>
+              <View style={styles.timeLabel}>
+                <Text style={styles.time}>8:00</Text>
+                <Text style={styles.period}>PM</Text>
+              </View>
+              <View style={styles.timeContent}>
+                {medications.map((med, i) => {
+                  const taken = isMedicationTaken(med.name, 'evening');
+                  return (
+                    <View key={i} style={styles.medItem}>
+                      <View style={[styles.medItemIcon, { backgroundColor: colors.indigo[50] }]}>
+                        <Tablets size={14} color={colors.indigo[500]} />
+                      </View>
+                      <View style={styles.medItemText}>
+                        <Text style={[styles.medItemName, taken && styles.medItemNameTaken]}>
+                          {med.name}
+                        </Text>
+                        <Text style={styles.medItemDose}>{med.dosage} • After Dinner</Text>
+                      </View>
+                      <TouchableOpacity 
+                        style={[styles.checkbox, taken && styles.checkboxChecked]}
+                        onPress={() => handleConfirmMedication(med, 'evening')}
+                        disabled={taken}
+                      >
+                        {taken && <Check size={14} color={colors.white} />}
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
+              </View>
+            </View>
+          </>
+        )}
+      </View>
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background.primary,
+  },
+  content: {
+    padding: spacing['6'],
+    paddingBottom: spacing['24'],
+  },
+  header: {
+    marginBottom: spacing['6'],
+  },
+  title: {
+    fontSize: fontSize['2xl'],
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+  },
+  subtitle: {
+    fontSize: fontSize.sm,
+    color: colors.text.secondary,
+    marginTop: spacing['1'],
+  },
+  calendarStrip: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: colors.white,
+    borderRadius: borderRadius['4xl'],
+    padding: spacing['4'],
+    marginBottom: spacing['6'],
+    ...shadows.sm,
+    borderWidth: 1,
+    borderColor: colors.border.light,
+  },
+  dayButton: {
+    flex: 1,
+    alignItems: 'center',
+    padding: spacing['2'],
+    borderRadius: borderRadius['2xl'],
+  },
+  dayButtonActive: {
+    backgroundColor: colors.primary[600],
+    ...shadows.lg,
+    shadowColor: colors.primary[600],
+  },
+  dayName: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.text.tertiary,
+    textTransform: 'uppercase',
+    marginBottom: spacing['2'],
+  },
+  dayNameActive: {
+    color: colors.primary[100],
+  },
+  dayNumber: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+  },
+  dayNumberActive: {
+    color: colors.white,
+  },
+  todayDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.primary[500],
+    marginTop: spacing['1'],
+  },
+  timeline: {
+    flex: 1,
+  },
+  timelineHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing['2'],
+    marginBottom: spacing['4'],
+  },
+  timelineTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+  },
+  emptyTimeline: {
+    padding: spacing['8'],
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: colors.text.tertiary,
+  },
+  timeSlot: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius['3xl'],
+    padding: spacing['5'],
+    marginBottom: spacing['4'],
+    borderLeftWidth: 4,
+    flexDirection: 'row',
+    ...shadows.sm,
+  },
+  timeLabel: {
+    alignItems: 'center',
+    minWidth: 48,
+    marginRight: spacing['4'],
+  },
+  time: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+  },
+  period: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.text.tertiary,
+    textTransform: 'uppercase',
+  },
+  timeContent: {
+    flex: 1,
+    gap: spacing['3'],
+  },
+  medItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingBottom: spacing['3'],
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border.light,
+  },
+  medItemIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing['3'],
+  },
+  medItemText: {
+    flex: 1,
+  },
+  medItemName: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.text.primary,
+  },
+  medItemNameTaken: {
+    textDecorationLine: 'line-through',
+    color: colors.text.tertiary,
+  },
+  medItemDose: {
+    fontSize: fontSize.xs,
+    color: colors.text.secondary,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.gray[300],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: colors.green[500],
+    borderColor: colors.green[500],
+  },
+});
+
+export default ScheduleScreen;
