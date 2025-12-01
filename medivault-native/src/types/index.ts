@@ -244,3 +244,23 @@ export interface ScheduledNotification {
   /** Event date (medication time) */
   eventDate: Date;
 }
+
+/**
+ * Tracked medication intake record
+ */
+export interface TakenMedication {
+  /** Unique identifier */
+  id?: string;
+  /** Name of the medication */
+  medicationName: string;
+  /** Time slot when medication was taken */
+  timeSlot: 'morning' | 'afternoon' | 'evening';
+  /** Date of intake (YYYY-MM-DD format) */
+  date: string;
+  /** Unix timestamp when medication was marked as taken */
+  takenAt: number;
+  /** Reference to the source medical record */
+  sourceId: string;
+  /** Dosage of the medication */
+  dosage?: string;
+}

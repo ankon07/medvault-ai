@@ -19,7 +19,7 @@ import {
   DatabaseReference,
 } from 'firebase/database';
 import { database } from '../config/firebase';
-import { MedicalRecord, Medication } from '../types';
+import { MedicalRecord, Medication, TakenMedication, LabTestRecord } from '../types';
 
 // Types for Firebase operations
 export interface UserProfile {
@@ -51,6 +51,8 @@ const PATHS = {
   records: 'records',
   reminders: 'reminders',
   settings: 'settings',
+  takenMedications: 'takenMedications',
+  labTestRecords: 'labTestRecords',
 };
 
 /**
@@ -406,4 +408,233 @@ export const syncLocalRecordsToFirebase = async (
   for (const record of newRecords) {
     await createRecord(userId, record);
   }
+};
+
+// ==================== Taken Medications Functions ====================
+
+/**
+ * Save a taken medication record
+ */
+export const saveTakenMedication = async (
+  userId: string,
+  takenMed: Omit<TakenMedication, 'id'>
+): Promise<string> => {
+  const takenMedsRef = ref(database, `${PATHS.takenMedications}/${userId}`);
+  const newTakenMedRef = push(takenMedsRef);
+  
+  const newTakenMed: TakenMedication = {
+    ...takenMed,
+    id: newTakenMedRef.key!,
+  };
+  
+  await set(newTakenMedRef, newTakenMed);
+  return newTakenMedRef.key!;
+};
+
+/**
+ * Get all taken medications for a user
+ */
+export const getUserTakenMedications = async (userId: string): Promise<TakenMedication[]> => {
+  const takenMedsRef = ref(database, `${PATHS.takenMedications}/${userId}`);
+  const snapshot = await get(takenMedsRef);
+  
+  if (!snapshot.exists()) {
+    return [];
+  }
+  
+  const takenMeds: TakenMedication[] = [];
+  snapshot.forEach((childSnapshot: DataSnapshot) => {
+    takenMeds.push(childSnapshot.val() as TakenMedication);
+  });
+  
+  return takenMeds.sort((a, b) => b.takenAt - a.takenAt);
+};
+
+/**
+ * Get taken medications for a specific date
+ */
+export const getTakenMedicationsForDate = async (
+  userId: string,
+  date: string
+): Promise<TakenMedication[]> => {
+  const allTakenMeds = await getUserTakenMedications(userId);
+  return allTakenMeds.filter(med => med.date === date);
+};
+
+/**
+ * Subscribe to taken medications changes (real-time updates)
+ */
+export const subscribeToTakenMedications = (
+  userId: string,
+  callback: (takenMeds: TakenMedication[]) => void,
+  onError?: (error: Error) => void
+): (() => void) => {
+  const takenMedsRef = ref(database, `${PATHS.takenMedications}/${userId}`);
+  
+  const listener = onValue(
+    takenMedsRef,
+    (snapshot: DataSnapshot) => {
+      const takenMeds: TakenMedication[] = [];
+      if (snapshot.exists()) {
+        snapshot.forEach((childSnapshot: DataSnapshot) => {
+          takenMeds.push(childSnapshot.val() as TakenMedication);
+        });
+      }
+      callback(takenMeds.sort((a, b) => b.takenAt - a.takenAt));
+    },
+    (error) => {
+      console.error('Firebase taken medications subscription error:', error);
+      onError?.(error);
+    }
+  );
+  
+  // Return unsubscribe function
+  return () => off(takenMedsRef, 'value', listener);
+};
+
+/**
+ * Delete a taken medication record (for undo functionality)
+ */
+export const deleteTakenMedication = async (
+  userId: string,
+  takenMedId: string
+): Promise<void> => {
+  const takenMedRef = ref(database, `${PATHS.takenMedications}/${userId}/${takenMedId}`);
+  await remove(takenMedRef);
+};
+
+/**
+ * Check if a medication has been taken for a specific date and time slot
+ */
+export const isMedicationTakenForSlot = async (
+  userId: string,
+  medicationName: string,
+  timeSlot: string,
+  date: string
+): Promise<boolean> => {
+  const takenMeds = await getTakenMedicationsForDate(userId, date);
+  return takenMeds.some(
+    med => med.medicationName === medicationName && med.timeSlot === timeSlot
+  );
+};
+
+// ==================== Lab Test Records Functions ====================
+
+/**
+ * Create a new lab test record
+ */
+export const createLabTestRecord = async (
+  userId: string,
+  record: LabTestRecord
+): Promise<string> => {
+  const recordRef = ref(database, `${PATHS.labTestRecords}/${userId}/${record.id}`);
+  
+  await set(recordRef, {
+    ...record,
+    userId,
+    syncedAt: new Date().toISOString(),
+  });
+  
+  return record.id;
+};
+
+/**
+ * Get all lab test records for a user
+ */
+export const getUserLabTestRecords = async (userId: string): Promise<LabTestRecord[]> => {
+  const recordsRef = ref(database, `${PATHS.labTestRecords}/${userId}`);
+  const snapshot = await get(recordsRef);
+  
+  if (!snapshot.exists()) {
+    return [];
+  }
+  
+  const records: LabTestRecord[] = [];
+  snapshot.forEach((childSnapshot: DataSnapshot) => {
+    const record = childSnapshot.val();
+    // Remove Firebase-specific fields
+    const { userId: _, syncedAt: __, ...cleanRecord } = record;
+    records.push(cleanRecord as LabTestRecord);
+  });
+  
+  return records.sort((a, b) => b.createdAt - a.createdAt);
+};
+
+/**
+ * Get a single lab test record by ID
+ */
+export const getLabTestRecordById = async (
+  userId: string,
+  recordId: string
+): Promise<LabTestRecord | null> => {
+  const recordRef = ref(database, `${PATHS.labTestRecords}/${userId}/${recordId}`);
+  const snapshot = await get(recordRef);
+  
+  if (!snapshot.exists()) {
+    return null;
+  }
+  
+  const record = snapshot.val();
+  const { userId: _, syncedAt: __, ...cleanRecord } = record;
+  return cleanRecord as LabTestRecord;
+};
+
+/**
+ * Update a lab test record
+ */
+export const updateLabTestRecord = async (
+  userId: string,
+  recordId: string,
+  updates: Partial<LabTestRecord>
+): Promise<void> => {
+  const recordRef = ref(database, `${PATHS.labTestRecords}/${userId}/${recordId}`);
+  await update(recordRef, {
+    ...updates,
+    syncedAt: new Date().toISOString(),
+  });
+};
+
+/**
+ * Delete a lab test record
+ */
+export const deleteLabTestRecord = async (
+  userId: string,
+  recordId: string
+): Promise<void> => {
+  const recordRef = ref(database, `${PATHS.labTestRecords}/${userId}/${recordId}`);
+  await remove(recordRef);
+};
+
+/**
+ * Subscribe to lab test records changes (real-time updates)
+ */
+export const subscribeToLabTestRecords = (
+  userId: string,
+  callback: (records: LabTestRecord[]) => void,
+  onError?: (error: Error) => void
+): (() => void) => {
+  const recordsRef = ref(database, `${PATHS.labTestRecords}/${userId}`);
+  
+  const listener = onValue(
+    recordsRef,
+    (snapshot: DataSnapshot) => {
+      const records: LabTestRecord[] = [];
+      if (snapshot.exists()) {
+        snapshot.forEach((childSnapshot: DataSnapshot) => {
+          const record = childSnapshot.val();
+          // Remove Firebase-specific fields
+          const { userId: _, syncedAt: __, ...cleanRecord } = record;
+          records.push(cleanRecord as LabTestRecord);
+        });
+      }
+      callback(records.sort((a, b) => b.createdAt - a.createdAt));
+    },
+    (error) => {
+      console.error('Firebase lab test records subscription error:', error);
+      onError?.(error);
+    }
+  );
+  
+  // Return unsubscribe function
+  return () => off(recordsRef, 'value', listener);
 };

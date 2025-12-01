@@ -1,9 +1,10 @@
 /**
  * MediVault AI - Schedule Screen
  * Timeline view for medication schedule with pill confirmation
+ * Persists taken medications to Firebase
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -23,35 +24,41 @@ import { MedicationWithSource } from '../types';
 
 type Props = MainTabScreenProps<'Schedule'>;
 
-// Track which medications have been taken today
-interface TakenMedication {
-  medicationName: string;
-  timeSlot: string;
-  date: string;
-}
+/**
+ * Get date string in YYYY-MM-DD format for a given day offset
+ */
+const getDateKey = (dayOffset: number): string => {
+  const date = new Date();
+  date.setDate(date.getDate() + dayOffset);
+  return date.toISOString().split('T')[0];
+};
 
 const ScheduleScreen: React.FC<Props> = () => {
   const insets = useSafeAreaInsets();
   const [selectedDay, setSelectedDay] = useState(0);
-  const { getAllMedications, decrementPillCount } = useRecordStore();
-  const [takenMeds, setTakenMeds] = useState<TakenMedication[]>([]);
+  
+  // Get store functions and state
+  const { 
+    getAllMedications, 
+    markMedicationTaken, 
+    isMedicationTaken 
+  } = useRecordStore();
   
   const medications = getAllMedications();
   const currentDate = getFullDateString(selectedDay);
+  const dateKey = useMemo(() => getDateKey(selectedDay), [selectedDay]);
 
   // Check if a medication has been taken for a specific time slot
-  const isMedicationTaken = (medName: string, timeSlot: string): boolean => {
-    return takenMeds.some(
-      (taken) => 
-        taken.medicationName === medName && 
-        taken.timeSlot === timeSlot && 
-        taken.date === currentDate
-    );
+  const checkMedicationTaken = (medName: string, timeSlot: string): boolean => {
+    return isMedicationTaken(medName, timeSlot, dateKey);
   };
 
   // Handle confirming medication taken
-  const handleConfirmMedication = async (med: MedicationWithSource, timeSlot: string) => {
-    const alreadyTaken = isMedicationTaken(med.name, timeSlot);
+  const handleConfirmMedication = async (
+    med: MedicationWithSource, 
+    timeSlot: 'morning' | 'afternoon' | 'evening'
+  ) => {
+    const alreadyTaken = checkMedicationTaken(med.name, timeSlot);
     
     if (alreadyTaken) {
       Alert.alert(
@@ -70,14 +77,8 @@ const ScheduleScreen: React.FC<Props> = () => {
           text: 'Confirm',
           onPress: async () => {
             try {
-              // Decrement pill count in store
-              await decrementPillCount(med.sourceId, med.name);
-              
-              // Mark as taken for this time slot
-              setTakenMeds((prev) => [
-                ...prev,
-                { medicationName: med.name, timeSlot, date: currentDate },
-              ]);
+              // Mark as taken in store (persists to Firebase)
+              await markMedicationTaken(med, timeSlot, dateKey);
             } catch (error) {
               Alert.alert('Error', 'Failed to update medication status');
             }
@@ -157,9 +158,9 @@ const ScheduleScreen: React.FC<Props> = () => {
               </View>
               <View style={styles.timeContent}>
                 {medications.map((med, i) => {
-                  const taken = isMedicationTaken(med.name, 'morning');
+                  const taken = checkMedicationTaken(med.name, 'morning');
                   return (
-                    <View key={i} style={styles.medItem}>
+                    <View key={`morning-${med.name}-${i}`} style={styles.medItem}>
                       <View style={[styles.medItemIcon, { backgroundColor: colors.blue[50] }]}>
                         <Pill size={14} color={colors.blue[500]} />
                       </View>
@@ -190,9 +191,9 @@ const ScheduleScreen: React.FC<Props> = () => {
               </View>
               <View style={styles.timeContent}>
                 {medications.slice(0, Math.ceil(medications.length / 2)).map((med, i) => {
-                  const taken = isMedicationTaken(med.name, 'afternoon');
+                  const taken = checkMedicationTaken(med.name, 'afternoon');
                   return (
-                    <View key={i} style={styles.medItem}>
+                    <View key={`afternoon-${med.name}-${i}`} style={styles.medItem}>
                       <View style={[styles.medItemIcon, { backgroundColor: colors.blue[50] }]}>
                         <Tablets size={14} color={colors.blue[500]} />
                       </View>
@@ -223,9 +224,9 @@ const ScheduleScreen: React.FC<Props> = () => {
               </View>
               <View style={styles.timeContent}>
                 {medications.map((med, i) => {
-                  const taken = isMedicationTaken(med.name, 'evening');
+                  const taken = checkMedicationTaken(med.name, 'evening');
                   return (
-                    <View key={i} style={styles.medItem}>
+                    <View key={`evening-${med.name}-${i}`} style={styles.medItem}>
                       <View style={[styles.medItemIcon, { backgroundColor: colors.indigo[50] }]}>
                         <Tablets size={14} color={colors.indigo[500]} />
                       </View>

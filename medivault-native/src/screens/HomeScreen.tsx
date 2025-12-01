@@ -144,7 +144,7 @@ const HomeScreen: React.FC<Props> = () => {
             <View style={[styles.statIcon, { backgroundColor: colors.purple[50] }]}>
               <FlaskConical size={22} color={colors.purple[500]} />
             </View>
-            <Text style={styles.statNumber}>{stats.labReports}</Text>
+            <Text style={styles.statNumber}>{stats.labTestRecords}</Text>
             <Text style={styles.statLabel}>Test Analyzer</Text>
           </TouchableOpacity>
 

@@ -4,7 +4,7 @@
  */
 
 import { create } from 'zustand';
-import { MedicalRecord, MedicationWithSource, Medication } from '../types';
+import { MedicalRecord, MedicationWithSource, Medication, TakenMedication, LabTestRecord } from '../types';
 import {
   subscribeToRecords,
   createRecord,
@@ -14,6 +14,13 @@ import {
   updateMedicationPillCount,
   syncLocalRecordsToFirebase,
   getUserRecords,
+  subscribeToTakenMedications,
+  saveTakenMedication,
+  getUserTakenMedications,
+  subscribeToLabTestRecords,
+  createLabTestRecord,
+  deleteLabTestRecord as firebaseDeleteLabTestRecord,
+  getUserLabTestRecords,
 } from '../services/firebaseDatabaseService';
 import { storageService } from '../services/storageService';
 
@@ -24,6 +31,8 @@ interface RecordState {
   // Data
   records: MedicalRecord[];
   selectedRecord: MedicalRecord | null;
+  takenMedications: TakenMedication[];
+  labTestRecords: LabTestRecord[];
   
   // User context
   userId: string | null;
@@ -36,6 +45,8 @@ interface RecordState {
   
   // Subscription management
   unsubscribe: (() => void) | null;
+  unsubscribeTakenMeds: (() => void) | null;
+  unsubscribeLabTests: (() => void) | null;
   
   // Actions
   initializeWithUser: (userId: string) => Promise<void>;
@@ -59,6 +70,24 @@ interface RecordState {
   ) => Promise<void>;
   syncLocalData: () => Promise<void>;
   
+  // Taken medications actions
+  markMedicationTaken: (
+    medication: MedicationWithSource,
+    timeSlot: 'morning' | 'afternoon' | 'evening',
+    date: string
+  ) => Promise<void>;
+  isMedicationTaken: (
+    medicationName: string,
+    timeSlot: string,
+    date: string
+  ) => boolean;
+  getTakenMedicationsForDate: (date: string) => TakenMedication[];
+  
+  // Lab test records actions
+  addLabTestRecord: (record: LabTestRecord) => Promise<void>;
+  deleteLabTestRecord: (recordId: string) => Promise<void>;
+  getLabTestRecordById: (id: string) => LabTestRecord | undefined;
+  
   // Computed getters
   getLabReports: () => MedicalRecord[];
   getAllMedications: () => MedicationWithSource[];
@@ -66,6 +95,7 @@ interface RecordState {
   getStats: () => {
     totalRecords: number;
     labReports: number;
+    labTestRecords: number;
     totalMedications: number;
   };
 }
@@ -77,22 +107,36 @@ export const useRecordStore = create<RecordState>((set, get) => ({
   // Initial state
   records: [],
   selectedRecord: null,
+  takenMedications: [],
+  labTestRecords: [],
   userId: null,
   isLoading: false,
   isAnalyzing: false,
   isSyncing: false,
   error: null,
   unsubscribe: null,
+  unsubscribeTakenMeds: null,
+  unsubscribeLabTests: null,
 
   /**
    * Initialize store with authenticated user and subscribe to real-time updates
    */
   initializeWithUser: async (userId: string) => {
-    const { unsubscribe: existingUnsubscribe } = get();
+    const { 
+      unsubscribe: existingUnsubscribe, 
+      unsubscribeTakenMeds: existingTakenMedsUnsubscribe,
+      unsubscribeLabTests: existingLabTestsUnsubscribe 
+    } = get();
     
-    // Cleanup existing subscription if any
+    // Cleanup existing subscriptions if any
     if (existingUnsubscribe) {
       existingUnsubscribe();
+    }
+    if (existingTakenMedsUnsubscribe) {
+      existingTakenMedsUnsubscribe();
+    }
+    if (existingLabTestsUnsubscribe) {
+      existingLabTestsUnsubscribe();
     }
     
     set({ isLoading: true, userId, error: null });
@@ -101,7 +145,7 @@ export const useRecordStore = create<RecordState>((set, get) => ({
       // First, sync any local data to Firebase
       await get().syncLocalData();
       
-      // Subscribe to real-time updates from Firebase
+      // Subscribe to real-time updates from Firebase for records
       const unsubscribe = subscribeToRecords(
         userId,
         (records) => {
@@ -113,7 +157,29 @@ export const useRecordStore = create<RecordState>((set, get) => ({
         }
       );
       
-      set({ unsubscribe });
+      // Subscribe to real-time updates from Firebase for taken medications
+      const unsubscribeTakenMeds = subscribeToTakenMedications(
+        userId,
+        (takenMedications) => {
+          set({ takenMedications });
+        },
+        (error) => {
+          console.error('Firebase taken medications subscription error:', error);
+        }
+      );
+      
+      // Subscribe to real-time updates from Firebase for lab test records
+      const unsubscribeLabTests = subscribeToLabTestRecords(
+        userId,
+        (labTestRecords) => {
+          set({ labTestRecords });
+        },
+        (error) => {
+          console.error('Firebase lab test records subscription error:', error);
+        }
+      );
+      
+      set({ unsubscribe, unsubscribeTakenMeds, unsubscribeLabTests });
     } catch (error) {
       console.error('Error initializing records:', error);
       set({ 
@@ -127,15 +193,25 @@ export const useRecordStore = create<RecordState>((set, get) => ({
    * Cleanup subscriptions (call on logout)
    */
   cleanup: () => {
-    const { unsubscribe } = get();
+    const { unsubscribe, unsubscribeTakenMeds, unsubscribeLabTests } = get();
     if (unsubscribe) {
       unsubscribe();
+    }
+    if (unsubscribeTakenMeds) {
+      unsubscribeTakenMeds();
+    }
+    if (unsubscribeLabTests) {
+      unsubscribeLabTests();
     }
     set({
       records: [],
       selectedRecord: null,
+      takenMedications: [],
+      labTestRecords: [],
       userId: null,
       unsubscribe: null,
+      unsubscribeTakenMeds: null,
+      unsubscribeLabTests: null,
       error: null,
     });
   },
@@ -398,15 +474,125 @@ export const useRecordStore = create<RecordState>((set, get) => ({
 
   // Get statistics
   getStats: () => {
-    const records = get().records;
+    const { records, labTestRecords } = get();
     return {
       totalRecords: records.length,
       labReports: records.filter((r) => r.analysis.documentType === 'Lab Report').length,
+      labTestRecords: labTestRecords.length,
       totalMedications: records.reduce(
         (acc, r) => acc + r.analysis.medications.length,
         0
       ),
     };
+  },
+
+  // ==================== Taken Medications Actions ====================
+
+  /**
+   * Mark a medication as taken for a specific time slot and date
+   */
+  markMedicationTaken: async (medication, timeSlot, date) => {
+    const { userId } = get();
+    
+    if (!userId) {
+      set({ error: 'User not authenticated' });
+      throw new Error('User not authenticated');
+    }
+    
+    try {
+      // Save to Firebase - subscription will update the store
+      await saveTakenMedication(userId, {
+        medicationName: medication.name,
+        timeSlot,
+        date,
+        takenAt: Date.now(),
+        sourceId: medication.sourceId,
+        dosage: medication.dosage,
+      });
+      
+      // Also decrement pill count
+      await get().decrementPillCount(medication.sourceId, medication.name);
+      
+      set({ error: null });
+    } catch (error) {
+      console.error('Error marking medication as taken:', error);
+      set({ error: 'Failed to save medication intake' });
+      throw error;
+    }
+  },
+
+  /**
+   * Check if a medication has been taken for a specific time slot and date
+   */
+  isMedicationTaken: (medicationName, timeSlot, date) => {
+    const { takenMedications } = get();
+    return takenMedications.some(
+      (taken) =>
+        taken.medicationName === medicationName &&
+        taken.timeSlot === timeSlot &&
+        taken.date === date
+    );
+  },
+
+  /**
+   * Get all taken medications for a specific date
+   */
+  getTakenMedicationsForDate: (date) => {
+    const { takenMedications } = get();
+    return takenMedications.filter((taken) => taken.date === date);
+  },
+
+  // ==================== Lab Test Records Actions ====================
+
+  /**
+   * Add a new lab test record to Firebase
+   */
+  addLabTestRecord: async (record) => {
+    const { userId } = get();
+    
+    if (!userId) {
+      set({ error: 'User not authenticated' });
+      throw new Error('User not authenticated');
+    }
+    
+    try {
+      // Save to Firebase - real-time subscription will update the store
+      await createLabTestRecord(userId, record);
+      set({ error: null });
+    } catch (error) {
+      console.error('Error adding lab test record:', error);
+      set({ error: 'Failed to save lab test record' });
+      throw error;
+    }
+  },
+
+  /**
+   * Delete a lab test record from Firebase
+   */
+  deleteLabTestRecord: async (recordId) => {
+    const { userId } = get();
+    
+    if (!userId) {
+      set({ error: 'User not authenticated' });
+      throw new Error('User not authenticated');
+    }
+    
+    try {
+      // Delete from Firebase - real-time subscription will update the store
+      await firebaseDeleteLabTestRecord(userId, recordId);
+      set({ error: null });
+    } catch (error) {
+      console.error('Error deleting lab test record:', error);
+      set({ error: 'Failed to delete lab test record' });
+      throw error;
+    }
+  },
+
+  /**
+   * Get a lab test record by ID
+   */
+  getLabTestRecordById: (id) => {
+    return get().labTestRecords.find((r) => r.id === id);
   },
 }));
 

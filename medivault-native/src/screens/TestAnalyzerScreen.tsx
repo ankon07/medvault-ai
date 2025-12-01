@@ -40,6 +40,7 @@ import { analyzeLabTestReport, ImageAnalysisError, ERROR_CODES } from '../servic
 import { generateId } from '../utils/dateUtils';
 import { LabTestAnalysis, LabTestRecord, TestParameter } from '../types';
 import { RootStackScreenProps } from '../navigation/types';
+import { useRecordStore } from '../store/useRecordStore';
 
 type Props = RootStackScreenProps<'TestAnalyzer'>;
 
@@ -49,6 +50,10 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<LabTestRecord | null>(null);
   const [showOriginal, setShowOriginal] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  
+  // Get store functions
+  const { addLabTestRecord } = useRecordStore();
 
   /**
    * Get user-friendly error title based on error code
@@ -96,6 +101,7 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
 
   const handleImageProcess = async (base64: string) => {
     setIsAnalyzing(true);
+    setIsSaved(false);
 
     try {
       const analysis = await analyzeLabTestReport(base64);
@@ -106,6 +112,15 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
         imageUrl: base64,
         analysis,
       };
+
+      // Save to Firebase automatically
+      try {
+        await addLabTestRecord(newRecord);
+        setIsSaved(true);
+      } catch (saveError) {
+        console.error('Error saving lab test record:', saveError);
+        // Still show the result even if save fails
+      }
 
       setAnalysisResult(newRecord);
     } catch (error: unknown) {
@@ -147,6 +162,7 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
   const handleNewAnalysis = () => {
     setAnalysisResult(null);
     setShowOriginal(false);
+    setIsSaved(false);
   };
 
   const getStatusIcon = (status: TestParameter['status']) => {
@@ -309,6 +325,12 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
           <View style={styles.heroContent}>
             <Text style={styles.heroTitle}>{analysis.title}</Text>
             <Text style={styles.heroDate}>{analysis.date}</Text>
+            {isSaved && (
+              <View style={styles.savedBadge}>
+                <CheckCircle2 size={12} color={colors.green[500]} />
+                <Text style={styles.savedText}>Saved</Text>
+              </View>
+            )}
           </View>
         </View>
 
@@ -867,6 +889,22 @@ const styles = StyleSheet.create({
   originalImage: {
     width: '100%',
     height: 400,
+  },
+  savedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing['1'],
+    marginTop: spacing['2'],
+    paddingHorizontal: spacing['2'],
+    paddingVertical: spacing['1'],
+    backgroundColor: colors.green[100],
+    borderRadius: borderRadius.lg,
+    alignSelf: 'flex-start',
+  },
+  savedText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semiBold,
+    color: colors.green[600],
   },
   newAnalysisButton: {
     flexDirection: 'row',
