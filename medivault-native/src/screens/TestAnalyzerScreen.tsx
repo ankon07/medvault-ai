@@ -36,7 +36,7 @@ import {
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '../theme';
 import { LoadingOverlay } from '../components/common';
 import { captureImage, selectImage } from '../services/imageService';
-import { analyzeLabTestReport } from '../services/geminiService';
+import { analyzeLabTestReport, ImageAnalysisError, ERROR_CODES } from '../services/geminiService';
 import { generateId } from '../utils/dateUtils';
 import { LabTestAnalysis, LabTestRecord, TestParameter } from '../types';
 import { RootStackScreenProps } from '../navigation/types';
@@ -49,6 +49,50 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<LabTestRecord | null>(null);
   const [showOriginal, setShowOriginal] = useState(false);
+
+  /**
+   * Get user-friendly error title based on error code
+   */
+  const getErrorTitle = (error: unknown): string => {
+    if (error instanceof ImageAnalysisError) {
+      switch (error.code) {
+        case ERROR_CODES.NOT_MEDICAL_DOCUMENT:
+          return 'Not a Lab Report';
+        case ERROR_CODES.INVALID_IMAGE:
+          return 'Invalid Image';
+        case ERROR_CODES.NETWORK_ERROR:
+          return 'Connection Error';
+        case ERROR_CODES.QUOTA_EXCEEDED:
+          return 'Service Unavailable';
+        case ERROR_CODES.SAFETY_BLOCKED:
+          return 'Image Not Supported';
+        case ERROR_CODES.API_KEY_INVALID:
+          return 'Configuration Error';
+        default:
+          return 'Analysis Failed';
+      }
+    }
+    return 'Error';
+  };
+
+  /**
+   * Get helpful suggestions based on error code
+   */
+  const getErrorSuggestion = (error: unknown): string | undefined => {
+    if (error instanceof ImageAnalysisError) {
+      switch (error.code) {
+        case ERROR_CODES.NOT_MEDICAL_DOCUMENT:
+          return '\n\nTip: Make sure you\'re uploading a blood test, urine test, or other laboratory test results.';
+        case ERROR_CODES.INVALID_IMAGE:
+          return '\n\nTip: Try taking a clearer photo with good lighting, ensuring the entire report is visible.';
+        case ERROR_CODES.NETWORK_ERROR:
+          return '\n\nTip: Check your internet connection and try again.';
+        default:
+          return undefined;
+      }
+    }
+    return undefined;
+  };
 
   const handleImageProcess = async (base64: string) => {
     setIsAnalyzing(true);
@@ -64,8 +108,19 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
       };
 
       setAnalysisResult(newRecord);
-    } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to analyze the lab report. Please try again.');
+    } catch (error: unknown) {
+      const title = getErrorTitle(error);
+      const message = error instanceof Error ? error.message : 'Failed to analyze the lab report. Please try again.';
+      const suggestion = getErrorSuggestion(error);
+      
+      Alert.alert(
+        title, 
+        message + (suggestion || ''),
+        [
+          { text: 'Try Again', onPress: () => {}, style: 'cancel' },
+          { text: 'OK', style: 'default' },
+        ]
+      );
     } finally {
       setIsAnalyzing(false);
     }

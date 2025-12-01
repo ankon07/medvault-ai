@@ -40,7 +40,8 @@
         "android.permission.WRITE_CALENDAR",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.SCHEDULE_EXACT_ALARM",
-        "android.permission.RECEIVE_BOOT_COMPLETED"
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
@@ -64,6 +65,11 @@
           "mode": "production"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "4fa07eb2-e775-432c-9993-ff556d98255a"
+      }
+    }
   }
 }

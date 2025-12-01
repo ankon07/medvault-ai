@@ -3,10 +3,61 @@
  * Integration with Google's Gemini API for document analysis
  */
 
-import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
+import { GoogleGenerativeAI, SchemaType, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 import { GEMINI_API_KEY } from '@env';
 import { MedicalAnalysis, LabTestAnalysis } from '../types';
 import { API_CONFIG } from '../constants';
+
+/**
+ * Custom error class for image analysis errors
+ */
+export class ImageAnalysisError extends Error {
+  code: string;
+  
+  constructor(message: string, code: string = 'ANALYSIS_ERROR') {
+    super(message);
+    this.name = 'ImageAnalysisError';
+    this.code = code;
+  }
+}
+
+/**
+ * Error codes for different failure scenarios
+ */
+export const ERROR_CODES = {
+  INVALID_IMAGE: 'INVALID_IMAGE',
+  NOT_MEDICAL_DOCUMENT: 'NOT_MEDICAL_DOCUMENT',
+  API_KEY_INVALID: 'API_KEY_INVALID',
+  QUOTA_EXCEEDED: 'QUOTA_EXCEEDED',
+  NETWORK_ERROR: 'NETWORK_ERROR',
+  SAFETY_BLOCKED: 'SAFETY_BLOCKED',
+  PARSE_ERROR: 'PARSE_ERROR',
+  VALIDATION_ERROR: 'VALIDATION_ERROR',
+  TIMEOUT_ERROR: 'TIMEOUT_ERROR',
+  UNKNOWN_ERROR: 'UNKNOWN_ERROR',
+} as const;
+
+/**
+ * Safety settings to allow medical content analysis
+ */
+const SAFETY_SETTINGS = [
+  {
+    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+    threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+    threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+    threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+    threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+  },
+];
 
 /**
  * Schema for medication data extraction
@@ -103,7 +154,115 @@ const analysisSchema = {
 /**
  * Prompt for the AI model
  */
-const ANALYSIS_PROMPT = `You are an expert medical assistant AI. Analyze this image of a medical document (prescription, report, or notes). Extract all relevant medical data into the specified JSON structure. Be extremely precise with medication names and dosages. If handwriting is hard to read, infer from context but mark uncertain parts. Format dates cleanly. Populate the purpose and side effects fields for medications based on general medical knowledge if not explicitly stated in text.`;
+const ANALYSIS_PROMPT = `You are an expert medical assistant AI. Analyze this image of a medical document (prescription, report, or notes). Extract all relevant medical data into the specified JSON structure. Be extremely precise with medication names and dosages. If handwriting is hard to read, infer from context but mark uncertain parts. Format dates cleanly. Populate the purpose and side effects fields for medications based on general medical knowledge if not explicitly stated in text.
+
+IMPORTANT: If the image is NOT a medical document (prescription, lab report, diagnosis, or medical notes), you must still return a valid JSON but set:
+- title: "Not a Medical Document"
+- documentType: "Other"
+- summary: "This image does not appear to be a medical document. Please upload a prescription, lab report, or medical diagnosis document."
+- diagnosis: []
+- medications: []
+- nextSteps: []`;
+
+/**
+ * Validates if the analysis result indicates a valid medical document
+ * @param data - The analysis result
+ * @returns boolean indicating if it's a valid medical document
+ */
+const isValidMedicalDocumentAnalysis = (data: MedicalAnalysis): boolean => {
+  // Check if AI indicated this is not a medical document
+  if (data.title === 'Not a Medical Document' || 
+      data.title?.toLowerCase().includes('not a medical') ||
+      data.summary?.toLowerCase().includes('does not appear to be a medical document') ||
+      data.summary?.toLowerCase().includes('not a medical document')) {
+    return false;
+  }
+  
+  // Check for meaningful content
+  const hasMedications = Boolean(data.medications && data.medications.length > 0);
+  const hasDiagnosis = Boolean(data.diagnosis && data.diagnosis.length > 0);
+  const hasValidSummary = Boolean(data.summary && data.summary.length > 50 && !data.summary.toLowerCase().includes('unable to'));
+  
+  return hasMedications || hasDiagnosis || hasValidSummary;
+};
+
+/**
+ * Parse error from Gemini API response
+ * @param error - The error object
+ * @returns ImageAnalysisError with appropriate code and message
+ */
+const parseGeminiError = (error: unknown): ImageAnalysisError => {
+  console.error('Gemini Analysis Error:', error);
+  
+  if (error instanceof ImageAnalysisError) {
+    return error;
+  }
+  
+  if (error instanceof SyntaxError) {
+    return new ImageAnalysisError(
+      'Unable to process the image. Please ensure it\'s a clear photo of a medical document.',
+      ERROR_CODES.PARSE_ERROR
+    );
+  }
+  
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    
+    // Check for API key issues
+    if (message.includes('api key') || message.includes('api_key') || message.includes('invalid key')) {
+      return new ImageAnalysisError(
+        'Invalid API key. Please check your configuration.',
+        ERROR_CODES.API_KEY_INVALID
+      );
+    }
+    
+    // Check for quota issues
+    if (message.includes('quota') || message.includes('rate limit') || message.includes('too many requests')) {
+      return new ImageAnalysisError(
+        'Service temporarily unavailable. Please try again in a few minutes.',
+        ERROR_CODES.QUOTA_EXCEEDED
+      );
+    }
+    
+    // Check for network issues
+    if (message.includes('network') || message.includes('fetch') || message.includes('connection') || message.includes('timeout')) {
+      return new ImageAnalysisError(
+        'Network error. Please check your internet connection and try again.',
+        ERROR_CODES.NETWORK_ERROR
+      );
+    }
+    
+    // Check for safety/content blocking
+    if (message.includes('safety') || message.includes('blocked') || message.includes('harm') || message.includes('content')) {
+      return new ImageAnalysisError(
+        'This image could not be processed. Please try a different image.',
+        ERROR_CODES.SAFETY_BLOCKED
+      );
+    }
+    
+    // Check for response issues
+    if (message.includes('no response') || message.includes('empty response')) {
+      return new ImageAnalysisError(
+        'Unable to analyze this image. Please ensure it\'s a clear, well-lit photo of a medical document.',
+        ERROR_CODES.INVALID_IMAGE
+      );
+    }
+    
+    // Check for validation issues
+    if (message.includes('invalid response') || message.includes('validation')) {
+      return new ImageAnalysisError(
+        'Unable to extract medical information from this image. Please try a clearer photo.',
+        ERROR_CODES.VALIDATION_ERROR
+      );
+    }
+  }
+  
+  // Default error
+  return new ImageAnalysisError(
+    'Failed to analyze the document. Please try again with a clearer image.',
+    ERROR_CODES.UNKNOWN_ERROR
+  );
+};
 
 /**
  * Analyze a medical document image using Gemini AI
@@ -113,8 +272,20 @@ const ANALYSIS_PROMPT = `You are an expert medical assistant AI. Analyze this im
 export const analyzeMedicalDocument = async (
   base64Image: string
 ): Promise<MedicalAnalysis> => {
+  // Validate API key
   if (!GEMINI_API_KEY) {
-    throw new Error('Gemini API key is not configured. Please add it to your .env file.');
+    throw new ImageAnalysisError(
+      'Gemini API key is not configured. Please add it to your .env file.',
+      ERROR_CODES.API_KEY_INVALID
+    );
+  }
+
+  // Validate base64 image
+  if (!base64Image || base64Image.length < 100) {
+    throw new ImageAnalysisError(
+      'Invalid image data. Please try capturing the image again.',
+      ERROR_CODES.INVALID_IMAGE
+    );
   }
 
   const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
@@ -126,6 +297,7 @@ export const analyzeMedicalDocument = async (
       responseSchema: analysisSchema,
       temperature: 0.1, // Low temperature for accurate extraction
     },
+    safetySettings: SAFETY_SETTINGS,
   });
 
   try {
@@ -140,17 +312,49 @@ export const analyzeMedicalDocument = async (
     ]);
 
     const response = result.response;
+    
+    // Check for blocked content
+    if (response.promptFeedback?.blockReason) {
+      throw new ImageAnalysisError(
+        'This image could not be processed due to content restrictions. Please try a different image.',
+        ERROR_CODES.SAFETY_BLOCKED
+      );
+    }
+    
     const text = response.text();
     
-    if (!text) {
-      throw new Error('No response from AI');
+    if (!text || text.trim().length === 0) {
+      throw new ImageAnalysisError(
+        'Unable to analyze this image. Please ensure it\'s a clear photo of a medical document.',
+        ERROR_CODES.INVALID_IMAGE
+      );
     }
 
-    const data = JSON.parse(text) as MedicalAnalysis;
+    let data: MedicalAnalysis;
+    
+    try {
+      data = JSON.parse(text) as MedicalAnalysis;
+    } catch (parseError) {
+      throw new ImageAnalysisError(
+        'Unable to process the AI response. Please try again.',
+        ERROR_CODES.PARSE_ERROR
+      );
+    }
     
     // Validate required fields
     if (!data.title || !data.documentType || !data.summary) {
-      throw new Error('Invalid response structure from AI');
+      throw new ImageAnalysisError(
+        'Unable to extract medical information from this image. Please try a clearer photo of a medical document.',
+        ERROR_CODES.VALIDATION_ERROR
+      );
+    }
+
+    // Check if it's actually a medical document
+    if (!isValidMedicalDocumentAnalysis(data)) {
+      throw new ImageAnalysisError(
+        'This image doesn\'t appear to be a medical document. Please upload a prescription, lab report, or medical diagnosis.',
+        ERROR_CODES.NOT_MEDICAL_DOCUMENT
+      );
     }
 
     // Ensure arrays are initialized
@@ -160,21 +364,13 @@ export const analyzeMedicalDocument = async (
 
     return data;
   } catch (error) {
-    console.error('Gemini Analysis Error:', error);
-    
-    if (error instanceof Error) {
-      if (error.message.includes('API key')) {
-        throw new Error('Invalid API key. Please check your configuration.');
-      }
-      if (error.message.includes('quota')) {
-        throw new Error('API quota exceeded. Please try again later.');
-      }
-      if (error.message.includes('network')) {
-        throw new Error('Network error. Please check your internet connection.');
-      }
+    // Re-throw ImageAnalysisError as is
+    if (error instanceof ImageAnalysisError) {
+      throw error;
     }
     
-    throw new Error('Failed to analyze the document. Please try again.');
+    // Parse and throw appropriate error
+    throw parseGeminiError(error);
   }
 };
 
@@ -313,7 +509,40 @@ IMPORTANT INSTRUCTIONS:
 7. Assess the overall patient condition (Excellent/Good/Fair/Needs Attention/Critical)
 8. Explain the condition assessment in simple terms
 
-Be precise with values and units. If handwriting is hard to read, infer from context. Format dates cleanly.`;
+Be precise with values and units. If handwriting is hard to read, infer from context. Format dates cleanly.
+
+IMPORTANT: If the image is NOT a lab test report (blood test, urine test, metabolic panel, etc.), you must still return a valid JSON but set:
+- title: "Not a Lab Test Report"
+- date: "Undated"
+- testCategories: []
+- healthSummary: "This image does not appear to be a lab test report. Please upload a blood test, urine test, or other laboratory test results."
+- keyFindings: []
+- recommendations: []
+- conditionAssessment: "Fair"
+- conditionExplanation: "Unable to analyze - image does not appear to be a lab test report."`;
+
+/**
+ * Validates if the analysis result indicates a valid lab test report
+ * @param data - The analysis result
+ * @returns boolean indicating if it's a valid lab test report
+ */
+const isValidLabTestAnalysis = (data: LabTestAnalysis): boolean => {
+  // Check if AI indicated this is not a lab test report
+  if (data.title === 'Not a Lab Test Report' || 
+      data.title?.toLowerCase().includes('not a lab') ||
+      data.healthSummary?.toLowerCase().includes('does not appear to be a lab') ||
+      data.healthSummary?.toLowerCase().includes('not a lab test') ||
+      data.conditionExplanation?.toLowerCase().includes('unable to analyze')) {
+    return false;
+  }
+  
+  // Check for meaningful content - must have at least some test parameters
+  const hasTestCategories = Boolean(data.testCategories && data.testCategories.length > 0);
+  const hasParameters = hasTestCategories && data.testCategories.some(cat => cat.parameters && cat.parameters.length > 0);
+  const hasValidSummary = Boolean(data.healthSummary && data.healthSummary.length > 30 && !data.healthSummary.toLowerCase().includes('unable to'));
+  
+  return hasParameters || hasValidSummary;
+};
 
 /**
  * Analyze a lab test report image using Gemini AI
@@ -323,8 +552,20 @@ Be precise with values and units. If handwriting is hard to read, infer from con
 export const analyzeLabTestReport = async (
   base64Image: string
 ): Promise<LabTestAnalysis> => {
+  // Validate API key
   if (!GEMINI_API_KEY) {
-    throw new Error('Gemini API key is not configured. Please add it to your .env file.');
+    throw new ImageAnalysisError(
+      'Gemini API key is not configured. Please add it to your .env file.',
+      ERROR_CODES.API_KEY_INVALID
+    );
+  }
+
+  // Validate base64 image
+  if (!base64Image || base64Image.length < 100) {
+    throw new ImageAnalysisError(
+      'Invalid image data. Please try capturing the image again.',
+      ERROR_CODES.INVALID_IMAGE
+    );
   }
 
   const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
@@ -336,6 +577,7 @@ export const analyzeLabTestReport = async (
       responseSchema: labTestSchema,
       temperature: 0.1, // Low temperature for accurate extraction
     },
+    safetySettings: SAFETY_SETTINGS,
   });
 
   try {
@@ -350,17 +592,49 @@ export const analyzeLabTestReport = async (
     ]);
 
     const response = result.response;
+    
+    // Check for blocked content
+    if (response.promptFeedback?.blockReason) {
+      throw new ImageAnalysisError(
+        'This image could not be processed due to content restrictions. Please try a different image.',
+        ERROR_CODES.SAFETY_BLOCKED
+      );
+    }
+    
     const text = response.text();
     
-    if (!text) {
-      throw new Error('No response from AI');
+    if (!text || text.trim().length === 0) {
+      throw new ImageAnalysisError(
+        'Unable to analyze this image. Please ensure it\'s a clear photo of a lab test report.',
+        ERROR_CODES.INVALID_IMAGE
+      );
     }
 
-    const data = JSON.parse(text) as LabTestAnalysis;
+    let data: LabTestAnalysis;
+    
+    try {
+      data = JSON.parse(text) as LabTestAnalysis;
+    } catch (parseError) {
+      throw new ImageAnalysisError(
+        'Unable to process the AI response. Please try again.',
+        ERROR_CODES.PARSE_ERROR
+      );
+    }
     
     // Validate required fields
-    if (!data.title || !data.testCategories || !data.healthSummary) {
-      throw new Error('Invalid response structure from AI');
+    if (!data.title || !data.healthSummary) {
+      throw new ImageAnalysisError(
+        'Unable to extract test information from this image. Please try a clearer photo of a lab report.',
+        ERROR_CODES.VALIDATION_ERROR
+      );
+    }
+
+    // Check if it's actually a lab test report
+    if (!isValidLabTestAnalysis(data)) {
+      throw new ImageAnalysisError(
+        'This image doesn\'t appear to be a lab test report. Please upload blood test, urine test, or other laboratory results.',
+        ERROR_CODES.NOT_MEDICAL_DOCUMENT
+      );
     }
 
     // Ensure arrays are initialized
@@ -370,21 +644,13 @@ export const analyzeLabTestReport = async (
 
     return data;
   } catch (error) {
-    console.error('Gemini Lab Test Analysis Error:', error);
-    
-    if (error instanceof Error) {
-      if (error.message.includes('API key')) {
-        throw new Error('Invalid API key. Please check your configuration.');
-      }
-      if (error.message.includes('quota')) {
-        throw new Error('API quota exceeded. Please try again later.');
-      }
-      if (error.message.includes('network')) {
-        throw new Error('Network error. Please check your internet connection.');
-      }
+    // Re-throw ImageAnalysisError as is
+    if (error instanceof ImageAnalysisError) {
+      throw error;
     }
     
-    throw new Error('Failed to analyze the lab report. Please try again.');
+    // Parse and throw appropriate error
+    throw parseGeminiError(error);
   }
 };
 

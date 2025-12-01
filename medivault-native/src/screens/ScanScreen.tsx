@@ -19,7 +19,7 @@ import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '..
 import { LoadingOverlay } from '../components/common';
 import { useRecordStore } from '../store/useRecordStore';
 import { captureImage, selectImage } from '../services/imageService';
-import { analyzeMedicalDocument } from '../services/geminiService';
+import { analyzeMedicalDocument, ImageAnalysisError, ERROR_CODES } from '../services/geminiService';
 import { promptAndAddToCalendar } from '../services/calendarService';
 import { generateId } from '../utils/dateUtils';
 import { MedicalRecord } from '../types';
@@ -32,6 +32,50 @@ const ScanScreen: React.FC<Props> = () => {
   const navigation = useNavigation();
   const { addRecord, setAnalyzing, setError } = useRecordStore();
   const [localAnalyzing, setLocalAnalyzing] = useState(false);
+
+  /**
+   * Get user-friendly error title based on error code
+   */
+  const getErrorTitle = (error: unknown): string => {
+    if (error instanceof ImageAnalysisError) {
+      switch (error.code) {
+        case ERROR_CODES.NOT_MEDICAL_DOCUMENT:
+          return 'Not a Medical Document';
+        case ERROR_CODES.INVALID_IMAGE:
+          return 'Invalid Image';
+        case ERROR_CODES.NETWORK_ERROR:
+          return 'Connection Error';
+        case ERROR_CODES.QUOTA_EXCEEDED:
+          return 'Service Unavailable';
+        case ERROR_CODES.SAFETY_BLOCKED:
+          return 'Image Not Supported';
+        case ERROR_CODES.API_KEY_INVALID:
+          return 'Configuration Error';
+        default:
+          return 'Analysis Failed';
+      }
+    }
+    return 'Error';
+  };
+
+  /**
+   * Get helpful suggestions based on error code
+   */
+  const getErrorSuggestion = (error: unknown): string | undefined => {
+    if (error instanceof ImageAnalysisError) {
+      switch (error.code) {
+        case ERROR_CODES.NOT_MEDICAL_DOCUMENT:
+          return '\n\nTip: Make sure you\'re uploading a prescription, lab report, or medical diagnosis document.';
+        case ERROR_CODES.INVALID_IMAGE:
+          return '\n\nTip: Try taking a clearer photo with good lighting, ensuring the entire document is visible.';
+        case ERROR_CODES.NETWORK_ERROR:
+          return '\n\nTip: Check your internet connection and try again.';
+        default:
+          return undefined;
+      }
+    }
+    return undefined;
+  };
 
   const handleImageProcess = async (base64: string) => {
     setLocalAnalyzing(true);
@@ -59,9 +103,21 @@ const ScanScreen: React.FC<Props> = () => {
       
       // Navigate to detail screen
       navigation.navigate('Detail', { recordId: newRecord.id } as never);
-    } catch (error: any) {
-      setError(error.message || 'Failed to analyze document');
-      Alert.alert('Error', error.message || 'Failed to analyze the document. Please try again.');
+    } catch (error: unknown) {
+      const title = getErrorTitle(error);
+      const message = error instanceof Error ? error.message : 'Failed to analyze the document. Please try again.';
+      const suggestion = getErrorSuggestion(error);
+      
+      setError(message);
+      
+      Alert.alert(
+        title, 
+        message + (suggestion || ''),
+        [
+          { text: 'Try Again', onPress: () => {}, style: 'cancel' },
+          { text: 'OK', style: 'default' },
+        ]
+      );
     } finally {
       setLocalAnalyzing(false);
       setAnalyzing(false);
