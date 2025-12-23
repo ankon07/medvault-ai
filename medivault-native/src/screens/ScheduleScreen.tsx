@@ -14,6 +14,7 @@ import {
   Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { Clock, Pill, Tablets, Check } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '../theme';
@@ -21,6 +22,7 @@ import { useRecordStore } from '../store/useRecordStore';
 import { getDayName, getDayNumber, getFullDateString } from '../utils/dateUtils';
 import { MainTabScreenProps } from '../navigation/types';
 import { MedicationWithSource } from '../types';
+import { formatNumber } from '../localization';
 
 type Props = MainTabScreenProps<'Schedule'>;
 
@@ -34,6 +36,7 @@ const getDateKey = (dayOffset: number): string => {
 };
 
 const ScheduleScreen: React.FC<Props> = () => {
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const [selectedDay, setSelectedDay] = useState(0);
   
@@ -62,25 +65,25 @@ const ScheduleScreen: React.FC<Props> = () => {
     
     if (alreadyTaken) {
       Alert.alert(
-        'Already Taken',
-        `You've already marked ${med.name} as taken for this time slot.`
+        t('schedule.alerts.alreadyTakenTitle'),
+        t('schedule.alerts.alreadyTakenMessage', { name: med.name })
       );
       return;
     }
 
     Alert.alert(
-      'Confirm Medication',
-      `Mark ${med.name} (${med.dosage}) as taken?`,
+      t('schedule.alerts.confirmTitle'),
+      t('schedule.alerts.confirmMessage', { name: med.name, dosage: med.dosage }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Confirm',
+          text: t('common.confirm'),
           onPress: async () => {
             try {
               // Mark as taken in store (persists to Firebase)
               await markMedicationTaken(med, timeSlot, dateKey);
             } catch (error) {
-              Alert.alert('Error', 'Failed to update medication status');
+              Alert.alert(t('common.error'), t('schedule.alerts.updateError'));
             }
           },
         },
@@ -99,7 +102,7 @@ const ScheduleScreen: React.FC<Props> = () => {
     >
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Schedule</Text>
+        <Text style={styles.title}>{t('schedule.title')}</Text>
         <Text style={styles.subtitle}>{currentDate}</Text>
       </View>
 
@@ -120,7 +123,7 @@ const ScheduleScreen: React.FC<Props> = () => {
                 selectedDay === offset && styles.dayNameActive,
               ]}
             >
-              {getDayName(offset)}
+              {t(`days.${getDayName(offset).toLowerCase()}`)}
             </Text>
             <Text
               style={[
@@ -128,7 +131,7 @@ const ScheduleScreen: React.FC<Props> = () => {
                 selectedDay === offset && styles.dayNumberActive,
               ]}
             >
-              {getDayNumber(offset)}
+              {formatNumber(getDayNumber(offset))}
             </Text>
             {offset === 0 && selectedDay !== 0 && (
               <View style={styles.todayDot} />
@@ -141,20 +144,20 @@ const ScheduleScreen: React.FC<Props> = () => {
       <View style={styles.timeline}>
         <View style={styles.timelineHeader}>
           <Clock size={18} color={colors.text.primary} />
-          <Text style={styles.timelineTitle}>Timeline</Text>
+          <Text style={styles.timelineTitle}>{t('schedule.timeline')}</Text>
         </View>
 
         {medications.length === 0 ? (
           <View style={styles.emptyTimeline}>
-            <Text style={styles.emptyText}>No active medications scheduled.</Text>
+            <Text style={styles.emptyText}>{t('schedule.noMedications')}</Text>
           </View>
         ) : (
           <>
             {/* Morning Slot */}
             <View style={[styles.timeSlot, { borderLeftColor: colors.orange[300] }]}>
               <View style={styles.timeLabel}>
-                <Text style={styles.time}>8:00</Text>
-                <Text style={styles.period}>AM</Text>
+                <Text style={styles.time}>{formatNumber(8)}:{formatNumber('00')}</Text>
+                <Text style={styles.period}>{t('schedule.am')}</Text>
               </View>
               <View style={styles.timeContent}>
                 {medications.map((med, i) => {
@@ -168,7 +171,7 @@ const ScheduleScreen: React.FC<Props> = () => {
                         <Text style={[styles.medItemName, taken && styles.medItemNameTaken]}>
                           {med.name}
                         </Text>
-                        <Text style={styles.medItemDose}>{med.dosage} • With Breakfast</Text>
+                        <Text style={styles.medItemDose}>{med.dosage} • {t('schedule.withBreakfast')}</Text>
                       </View>
                       <TouchableOpacity 
                         style={[styles.checkbox, taken && styles.checkboxChecked]}
@@ -186,8 +189,8 @@ const ScheduleScreen: React.FC<Props> = () => {
             {/* Afternoon Slot */}
             <View style={[styles.timeSlot, { borderLeftColor: colors.blue[500] }]}>
               <View style={styles.timeLabel}>
-                <Text style={styles.time}>1:00</Text>
-                <Text style={styles.period}>PM</Text>
+                <Text style={styles.time}>{formatNumber(1)}:{formatNumber('00')}</Text>
+                <Text style={styles.period}>{t('schedule.pm')}</Text>
               </View>
               <View style={styles.timeContent}>
                 {medications.slice(0, Math.ceil(medications.length / 2)).map((med, i) => {
@@ -201,7 +204,7 @@ const ScheduleScreen: React.FC<Props> = () => {
                         <Text style={[styles.medItemName, taken && styles.medItemNameTaken]}>
                           {med.name}
                         </Text>
-                        <Text style={styles.medItemDose}>{med.dosage} • After Lunch</Text>
+                        <Text style={styles.medItemDose}>{med.dosage} • {t('schedule.afterLunch')}</Text>
                       </View>
                       <TouchableOpacity 
                         style={[styles.checkbox, taken && styles.checkboxChecked]}
@@ -219,8 +222,8 @@ const ScheduleScreen: React.FC<Props> = () => {
             {/* Evening Slot */}
             <View style={[styles.timeSlot, { borderLeftColor: colors.indigo[500] }]}>
               <View style={styles.timeLabel}>
-                <Text style={styles.time}>8:00</Text>
-                <Text style={styles.period}>PM</Text>
+                <Text style={styles.time}>{formatNumber(8)}:{formatNumber('00')}</Text>
+                <Text style={styles.period}>{t('schedule.pm')}</Text>
               </View>
               <View style={styles.timeContent}>
                 {medications.map((med, i) => {
@@ -234,7 +237,7 @@ const ScheduleScreen: React.FC<Props> = () => {
                         <Text style={[styles.medItemName, taken && styles.medItemNameTaken]}>
                           {med.name}
                         </Text>
-                        <Text style={styles.medItemDose}>{med.dosage} • After Dinner</Text>
+                        <Text style={styles.medItemDose}>{med.dosage} • {t('schedule.afterDinner')}</Text>
                       </View>
                       <TouchableOpacity 
                         style={[styles.checkbox, taken && styles.checkboxChecked]}

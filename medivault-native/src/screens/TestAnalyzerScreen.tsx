@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import {
   FlaskConical,
   Camera,
@@ -47,6 +48,7 @@ type Props = RootStackScreenProps<'TestAnalyzer'>;
 const TestAnalyzerScreen: React.FC<Props> = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<LabTestRecord | null>(null);
   const [showOriginal, setShowOriginal] = useState(false);
@@ -62,22 +64,22 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
     if (error instanceof ImageAnalysisError) {
       switch (error.code) {
         case ERROR_CODES.NOT_MEDICAL_DOCUMENT:
-          return 'Not a Lab Report';
+          return t('testAnalyzer.errors.notLabReport');
         case ERROR_CODES.INVALID_IMAGE:
-          return 'Invalid Image';
+          return t('testAnalyzer.errors.invalidImage');
         case ERROR_CODES.NETWORK_ERROR:
-          return 'Connection Error';
+          return t('testAnalyzer.errors.connectionError');
         case ERROR_CODES.QUOTA_EXCEEDED:
-          return 'Service Unavailable';
+          return t('testAnalyzer.errors.serviceUnavailable');
         case ERROR_CODES.SAFETY_BLOCKED:
-          return 'Image Not Supported';
+          return t('testAnalyzer.errors.imageNotSupported');
         case ERROR_CODES.API_KEY_INVALID:
-          return 'Configuration Error';
+          return t('testAnalyzer.errors.configError');
         default:
-          return 'Analysis Failed';
+          return t('testAnalyzer.errors.analysisFailed');
       }
     }
-    return 'Error';
+    return t('common.error');
   };
 
   /**
@@ -87,11 +89,11 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
     if (error instanceof ImageAnalysisError) {
       switch (error.code) {
         case ERROR_CODES.NOT_MEDICAL_DOCUMENT:
-          return '\n\nTip: Make sure you\'re uploading a blood test, urine test, or other laboratory test results.';
+          return '\n\n' + t('testAnalyzer.errors.notLabReportTip');
         case ERROR_CODES.INVALID_IMAGE:
-          return '\n\nTip: Try taking a clearer photo with good lighting, ensuring the entire report is visible.';
+          return '\n\n' + t('testAnalyzer.errors.invalidImageTip');
         case ERROR_CODES.NETWORK_ERROR:
-          return '\n\nTip: Check your internet connection and try again.';
+          return '\n\n' + t('testAnalyzer.errors.connectionTip');
         default:
           return undefined;
       }
@@ -132,8 +134,8 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
         title, 
         message + (suggestion || ''),
         [
-          { text: 'Try Again', onPress: () => {}, style: 'cancel' },
-          { text: 'OK', style: 'default' },
+          { text: t('testAnalyzer.errors.tryAgain'), onPress: () => {}, style: 'cancel' },
+          { text: t('common.ok'), style: 'default' },
         ]
       );
     } finally {
@@ -146,7 +148,7 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
     if (result.success && result.base64) {
       await handleImageProcess(result.base64);
     } else if (result.error && result.error !== 'Image capture was cancelled.') {
-      Alert.alert('Error', result.error);
+      Alert.alert(t('common.error'), result.error);
     }
   };
 
@@ -155,7 +157,7 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
     if (result.success && result.base64) {
       await handleImageProcess(result.base64);
     } else if (result.error && result.error !== 'Image selection was cancelled.') {
-      Alert.alert('Error', result.error);
+      Alert.alert(t('common.error'), result.error);
     }
   };
 
@@ -218,8 +220,8 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <LoadingOverlay 
           visible={isAnalyzing} 
-          message="Analyzing Lab Report..."
-          submessage="AI is comparing test values with standard ranges and generating health insights."
+          message={t('testAnalyzer.analyzing')}
+          submessage={t('testAnalyzer.analyzingSubtext')}
         />
 
         {/* Header */}
@@ -227,7 +229,7 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
           <TouchableOpacity onPress={handleGoBack} style={styles.closeButton}>
             <ChevronLeft size={24} color={colors.text.primary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Test Analyzer</Text>
+          <Text style={styles.headerTitle}>{t('testAnalyzer.title')}</Text>
           <View style={{ width: 40 }} />
         </View>
 
@@ -237,9 +239,9 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
             <View style={styles.iconCircle}>
               <FlaskConical size={48} color={colors.purple[600]} />
             </View>
-            <Text style={styles.title}>Lab Test Analysis</Text>
+            <Text style={styles.title}>{t('testAnalyzer.labTestAnalysis')}</Text>
             <Text style={styles.description}>
-              Upload your lab test report and get AI-powered analysis with standard value comparisons and health insights.
+              {t('testAnalyzer.description')}
             </Text>
           </View>
 
@@ -249,19 +251,19 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
               <View style={[styles.featureIcon, { backgroundColor: colors.blue[50] }]}>
                 <Activity size={20} color={colors.blue[500]} />
               </View>
-              <Text style={styles.featureText}>Compare with Standards</Text>
+              <Text style={styles.featureText}>{t('testAnalyzer.compareWithStandards')}</Text>
             </View>
             <View style={styles.featureItem}>
               <View style={[styles.featureIcon, { backgroundColor: colors.emerald[50] }]}>
                 <Heart size={20} color={colors.emerald[500]} />
               </View>
-              <Text style={styles.featureText}>Health Assessment</Text>
+              <Text style={styles.featureText}>{t('testAnalyzer.healthAssessment')}</Text>
             </View>
             <View style={styles.featureItem}>
               <View style={[styles.featureIcon, { backgroundColor: colors.amber[50] }]}>
                 <Sparkles size={20} color={colors.amber[400]} />
               </View>
-              <Text style={styles.featureText}>AI Recommendations</Text>
+              <Text style={styles.featureText}>{t('testAnalyzer.aiRecommendations')}</Text>
             </View>
           </View>
 
@@ -273,7 +275,7 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
               activeOpacity={0.9}
             >
               <Camera size={24} color={colors.white} />
-              <Text style={styles.primaryButtonText}>Take Photo</Text>
+              <Text style={styles.primaryButtonText}>{t('testAnalyzer.takePhoto')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -282,14 +284,14 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
               activeOpacity={0.8}
             >
               <ImageIcon size={24} color={colors.text.primary} />
-              <Text style={styles.secondaryButtonText}>Choose from Gallery</Text>
+              <Text style={styles.secondaryButtonText}>{t('testAnalyzer.chooseFromGallery')}</Text>
             </TouchableOpacity>
           </View>
 
           {/* Supported formats */}
           <View style={styles.supportedFormats}>
             <Text style={styles.supportedText}>
-              Supported: Blood Tests, Urine Tests, Lipid Panel, CBC, Metabolic Panel
+              {t('testAnalyzer.supportedFormats')}
             </Text>
           </View>
         </View>
@@ -300,6 +302,30 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
   // Analysis Result Screen
   const { analysis } = analysisResult;
   const conditionColors = getConditionColor(analysis.conditionAssessment);
+
+  // Helper to translate status labels
+  const getStatusLabel = (status: string): string => {
+    const statusKey = status.toLowerCase();
+    const statusMap: Record<string, string> = {
+      'normal': t('testAnalyzer.normal'),
+      'low': t('testAnalyzer.low'),
+      'high': t('testAnalyzer.high'),
+      'critical': t('testAnalyzer.critical'),
+    };
+    return statusMap[statusKey] || status.charAt(0).toUpperCase() + status.slice(1);
+  };
+
+  // Helper to translate condition assessment
+  const getConditionLabel = (condition: string): string => {
+    const conditionMap: Record<string, string> = {
+      'Excellent': t('testAnalyzer.excellent'),
+      'Good': t('testAnalyzer.good'),
+      'Fair': t('testAnalyzer.fair'),
+      'Needs Attention': t('testAnalyzer.needsAttention'),
+      'Critical': t('testAnalyzer.critical'),
+    };
+    return conditionMap[condition] || condition;
+  };
 
   return (
     <ScrollView
@@ -312,7 +338,7 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
         <TouchableOpacity onPress={handleNewAnalysis} style={styles.closeButton}>
           <X size={24} color={colors.text.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Test Results</Text>
+        <Text style={styles.headerTitle}>{t('testAnalyzer.testResults')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -328,7 +354,7 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
             {isSaved && (
               <View style={styles.savedBadge}>
                 <CheckCircle2 size={12} color={colors.green[500]} />
-                <Text style={styles.savedText}>Saved</Text>
+                <Text style={styles.savedText}>{t('testAnalyzer.saved')}</Text>
               </View>
             )}
           </View>
@@ -336,12 +362,12 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
 
         <View style={styles.heroDetails}>
           <View style={styles.detailItem}>
-            <Text style={styles.detailLabel}>Lab</Text>
-            <Text style={styles.detailValue}>{analysis.labName || 'Not listed'}</Text>
+            <Text style={styles.detailLabel}>{t('testAnalyzer.lab')}</Text>
+            <Text style={styles.detailValue}>{analysis.labName || t('testAnalyzer.notListed')}</Text>
           </View>
           <View style={styles.detailItem}>
-            <Text style={styles.detailLabel}>Referred By</Text>
-            <Text style={styles.detailValue}>{analysis.referringDoctor || 'Not listed'}</Text>
+            <Text style={styles.detailLabel}>{t('testAnalyzer.referredBy')}</Text>
+            <Text style={styles.detailValue}>{analysis.referringDoctor || t('testAnalyzer.notListed')}</Text>
           </View>
         </View>
       </View>
@@ -353,9 +379,9 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
             <Heart size={24} color={conditionColors.icon} />
           </View>
           <View style={styles.conditionContent}>
-            <Text style={styles.conditionLabel}>Overall Condition</Text>
+            <Text style={styles.conditionLabel}>{t('testAnalyzer.overallCondition')}</Text>
             <Text style={[styles.conditionValue, { color: conditionColors.text }]}>
-              {analysis.conditionAssessment}
+              {getConditionLabel(analysis.conditionAssessment)}
             </Text>
           </View>
         </View>
@@ -368,17 +394,17 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
       <View style={styles.summaryCard}>
         <View style={styles.summaryHeader}>
           <Sparkles size={16} color={colors.white} />
-          <Text style={styles.summaryLabel}>AI Health Summary</Text>
+          <Text style={styles.summaryLabel}>{t('testAnalyzer.healthSummary')}</Text>
         </View>
         <Text style={styles.summaryText}>{analysis.healthSummary}</Text>
       </View>
 
       {/* Key Findings */}
-      {analysis.keyFindings.length > 0 && (
+      {(analysis.keyFindings?.length ?? 0) > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <AlertTriangle size={18} color={colors.amber[800]} />
-            <Text style={[styles.sectionTitle, { color: colors.amber[800] }]}>Key Findings</Text>
+            <Text style={[styles.sectionTitle, { color: colors.amber[800] }]}>{t('testAnalyzer.keyFindings')}</Text>
           </View>
           {analysis.keyFindings.map((finding, i) => (
             <View key={i} style={styles.findingItem}>
@@ -390,17 +416,17 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
       )}
 
       {/* Test Results by Category */}
-      {analysis.testCategories.map((category, catIndex) => (
+      {(analysis.testCategories || []).map((category, catIndex) => (
         <View key={catIndex} style={styles.section}>
           <View style={styles.sectionHeader}>
             <Activity size={18} color={colors.primary[600]} />
             <Text style={styles.sectionTitle}>{category.name}</Text>
             <View style={styles.countBadge}>
-              <Text style={styles.countText}>{category.parameters.length}</Text>
+              <Text style={styles.countText}>{(category.parameters || []).length}</Text>
             </View>
           </View>
           
-          {category.parameters.map((param, paramIndex) => {
+          {(category.parameters || []).map((param, paramIndex) => {
             const statusColors = getStatusColor(param.status);
             return (
               <View key={paramIndex} style={styles.paramCard}>
@@ -409,20 +435,20 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
                   <View style={[styles.statusBadge, { backgroundColor: statusColors.bg, borderColor: statusColors.border }]}>
                     {getStatusIcon(param.status)}
                     <Text style={[styles.statusText, { color: statusColors.text }]}>
-                      {param.status.charAt(0).toUpperCase() + param.status.slice(1)}
+                      {getStatusLabel(param.status)}
                     </Text>
                   </View>
                 </View>
                 
                 <View style={styles.paramValues}>
                   <View style={styles.paramValueItem}>
-                    <Text style={styles.paramValueLabel}>Result</Text>
+                    <Text style={styles.paramValueLabel}>{t('testAnalyzer.result')}</Text>
                     <Text style={[styles.paramValue, { color: statusColors.text }]}>
                       {param.value} {param.unit}
                     </Text>
                   </View>
                   <View style={styles.paramValueItem}>
-                    <Text style={styles.paramValueLabel}>Reference</Text>
+                    <Text style={styles.paramValueLabel}>{t('testAnalyzer.reference')}</Text>
                     <Text style={styles.paramReference}>{param.referenceRange} {param.unit}</Text>
                   </View>
                 </View>
@@ -437,11 +463,11 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
       ))}
 
       {/* Recommendations */}
-      {analysis.recommendations.length > 0 && (
+      {(analysis.recommendations?.length ?? 0) > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <CheckCircle2 size={18} color={colors.indigo[800]} />
-            <Text style={[styles.sectionTitle, { color: colors.indigo[800] }]}>Recommendations</Text>
+            <Text style={[styles.sectionTitle, { color: colors.indigo[800] }]}>{t('testAnalyzer.recommendations')}</Text>
           </View>
           {analysis.recommendations.map((rec, i) => (
             <View key={i} style={styles.recommendationItem}>
@@ -459,7 +485,7 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
       >
         <Eye size={18} color={colors.text.secondary} />
         <Text style={styles.viewOriginalText}>
-          {showOriginal ? 'Hide Original Report' : 'View Original Report'}
+          {showOriginal ? t('testAnalyzer.hideOriginalReport') : t('testAnalyzer.viewOriginalReport')}
         </Text>
       </TouchableOpacity>
 
@@ -480,7 +506,7 @@ const TestAnalyzerScreen: React.FC<Props> = () => {
         activeOpacity={0.9}
       >
         <FlaskConical size={20} color={colors.white} />
-        <Text style={styles.newAnalysisText}>Analyze Another Report</Text>
+        <Text style={styles.newAnalysisText}>{t('testAnalyzer.scanLabReport')}</Text>
       </TouchableOpacity>
 
       <View style={{ height: spacing['24'] }} />

@@ -82,8 +82,22 @@ export const getRelativeTime = (timestamp: number): string => {
 };
 
 /**
+ * Get greeting key based on time of day
+ * Returns a translation key for use with i18n
+ * @returns Greeting key (e.g., "morning", "afternoon", "evening")
+ */
+export const getGreetingKey = (): 'morning' | 'afternoon' | 'evening' => {
+  const hour = new Date().getHours();
+  
+  if (hour < 12) return 'morning';
+  if (hour < 17) return 'afternoon';
+  return 'evening';
+};
+
+/**
  * Get greeting based on time of day
  * @returns Greeting string (e.g., "Good Morning")
+ * @deprecated Use getGreetingKey() with useTranslation hook instead
  */
 export const getGreeting = (): string => {
   const hour = new Date().getHours();

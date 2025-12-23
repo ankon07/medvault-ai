@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import {
   Camera,
   Activity,
@@ -27,10 +28,10 @@ import {
 } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '../theme';
-import { Card, EmptyState } from '../components/common';
+import { Card, EmptyState, LanguageToggle } from '../components/common';
 import { useRecordStore } from '../store/useRecordStore';
 import { useAuthStore } from '../store/useAuthStore';
-import { getGreeting } from '../utils/dateUtils';
+import { getGreetingKey } from '../utils/dateUtils';
 import { DOCUMENT_TYPE_CONFIG } from '../constants';
 import { MainTabScreenProps } from '../navigation/types';
 
@@ -42,6 +43,7 @@ type Props = MainTabScreenProps<'Home'>;
 const HomeScreen: React.FC<Props> = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const { t } = useTranslation();
   
   const { 
     records, 
@@ -57,6 +59,10 @@ const HomeScreen: React.FC<Props> = () => {
   
   // Get display name for greeting
   const displayName = userProfile?.displayName || user?.displayName || 'there';
+  
+  // Get localized greeting
+  const greetingKey = getGreetingKey();
+  const greeting = t(`greeting.${greetingKey}`);
 
   const handleScan = () => {
     navigation.navigate('Scan' as never);
@@ -82,13 +88,18 @@ const HomeScreen: React.FC<Props> = () => {
         />
       }
     >
+      {/* Language Toggle - Top Right */}
+      <View style={styles.languageToggleContainer}>
+        <LanguageToggle size="medium" />
+      </View>
+
       {/* Hero Card */}
       <View style={styles.heroCard}>
         <View style={styles.heroGlow} />
         <View style={styles.heroContent}>
           <View style={styles.heroHeader}>
             <View>
-              <Text style={styles.heroGreeting}>{getGreeting()},</Text>
+              <Text style={styles.heroGreeting}>{greeting},</Text>
               <Text style={styles.heroName}>{displayName}</Text>
             </View>
             <View style={styles.heroIcon}>
@@ -102,9 +113,9 @@ const HomeScreen: React.FC<Props> = () => {
               <FileBadge size={20} color={colors.white} />
             </View>
             <View style={styles.latestText}>
-              <Text style={styles.latestLabel}>Latest Update</Text>
+              <Text style={styles.latestLabel}>{t('home.latestUpdate')}</Text>
               <Text style={styles.latestTitle} numberOfLines={1}>
-                {records[0]?.analysis.title || 'No records yet'}
+                {records[0]?.analysis.title || t('home.noRecordsYet')}
               </Text>
             </View>
           </View>
@@ -116,14 +127,14 @@ const HomeScreen: React.FC<Props> = () => {
             activeOpacity={0.9}
           >
             <Camera size={20} color={colors.primary[700]} />
-            <Text style={styles.scanButtonText}>Scan New Document</Text>
+            <Text style={styles.scanButtonText}>{t('home.scanNewDocument')}</Text>
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Quick Access Stats */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Access</Text>
+        <Text style={styles.sectionTitle}>{t('home.quickAccess')}</Text>
         <View style={styles.statsGrid}>
           <TouchableOpacity 
             style={styles.statCard}
@@ -134,7 +145,7 @@ const HomeScreen: React.FC<Props> = () => {
               <FileText size={22} color={colors.orange[500]} />
             </View>
             <Text style={styles.statNumber}>{stats.totalRecords}</Text>
-            <Text style={styles.statLabel}>Notebook</Text>
+            <Text style={styles.statLabel}>{t('home.notebook')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -146,7 +157,7 @@ const HomeScreen: React.FC<Props> = () => {
               <FlaskConical size={22} color={colors.purple[500]} />
             </View>
             <Text style={styles.statNumber}>{stats.labTestRecords}</Text>
-            <Text style={styles.statLabel}>Test Analyzer</Text>
+            <Text style={styles.statLabel}>{t('home.testAnalyzer')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -158,7 +169,7 @@ const HomeScreen: React.FC<Props> = () => {
               <Users size={22} color={colors.green[600]} />
             </View>
             <Text style={styles.statNumber}>•••</Text>
-            <Text style={styles.statLabel}>Family Members</Text>
+            <Text style={styles.statLabel}>{t('home.familyMembers')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -172,7 +183,7 @@ const HomeScreen: React.FC<Props> = () => {
               </View>
               <View style={styles.wideCardText}>
                 <Text style={styles.statNumber}>{stats.totalMedications}</Text>
-                <Text style={styles.statLabel}>Active Medicines</Text>
+                <Text style={styles.statLabel}>{t('home.activeMedicines')}</Text>
               </View>
               <View style={styles.wideCardArrow}>
                 <ChevronRight size={20} color={colors.white} />
@@ -185,17 +196,17 @@ const HomeScreen: React.FC<Props> = () => {
       {/* Recent History */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent History</Text>
+          <Text style={styles.sectionTitle}>{t('home.recentHistory')}</Text>
           <TouchableOpacity onPress={() => navigation.navigate('History' as never)}>
-            <Text style={styles.seeAllText}>See All</Text>
+            <Text style={styles.seeAllText}>{t('common.seeAll')}</Text>
           </TouchableOpacity>
         </View>
 
         {recentRecords.length === 0 ? (
           <EmptyState
             icon={<Camera size={24} color={colors.gray[300]} />}
-            title="No records found"
-            message="Scan your first document!"
+            title={t('home.noRecordsFound')}
+            message={t('home.scanFirstDocument')}
           />
         ) : (
           <View style={styles.recordsList}>
@@ -252,6 +263,13 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing['6'],
     paddingBottom: spacing['24'],
+  },
+  
+  // Language Toggle
+  languageToggleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: spacing['4'],
   },
 
   // Hero

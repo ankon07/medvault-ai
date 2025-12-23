@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { Camera, Image as ImageIcon, X, Sparkles } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '../theme';
@@ -30,6 +31,7 @@ type Props = MainTabScreenProps<'Scan'>;
 const ScanScreen: React.FC<Props> = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const { addRecord, setAnalyzing, setError } = useRecordStore();
   const [localAnalyzing, setLocalAnalyzing] = useState(false);
 
@@ -40,22 +42,22 @@ const ScanScreen: React.FC<Props> = () => {
     if (error instanceof ImageAnalysisError) {
       switch (error.code) {
         case ERROR_CODES.NOT_MEDICAL_DOCUMENT:
-          return 'Not a Medical Document';
+          return t('scan.errors.notMedicalDocument');
         case ERROR_CODES.INVALID_IMAGE:
-          return 'Invalid Image';
+          return t('scan.errors.invalidImage');
         case ERROR_CODES.NETWORK_ERROR:
-          return 'Connection Error';
+          return t('scan.errors.connectionError');
         case ERROR_CODES.QUOTA_EXCEEDED:
-          return 'Service Unavailable';
+          return t('scan.errors.serviceUnavailable');
         case ERROR_CODES.SAFETY_BLOCKED:
-          return 'Image Not Supported';
+          return t('scan.errors.imageNotSupported');
         case ERROR_CODES.API_KEY_INVALID:
-          return 'Configuration Error';
+          return t('scan.errors.configurationError');
         default:
-          return 'Analysis Failed';
+          return t('scan.errors.analysisFailed');
       }
     }
-    return 'Error';
+    return t('common.error');
   };
 
   /**
@@ -65,11 +67,11 @@ const ScanScreen: React.FC<Props> = () => {
     if (error instanceof ImageAnalysisError) {
       switch (error.code) {
         case ERROR_CODES.NOT_MEDICAL_DOCUMENT:
-          return '\n\nTip: Make sure you\'re uploading a prescription, lab report, or medical diagnosis document.';
+          return '\n\n' + t('scan.errors.notMedicalDocumentTip');
         case ERROR_CODES.INVALID_IMAGE:
-          return '\n\nTip: Try taking a clearer photo with good lighting, ensuring the entire document is visible.';
+          return '\n\n' + t('scan.errors.invalidImageTip');
         case ERROR_CODES.NETWORK_ERROR:
-          return '\n\nTip: Check your internet connection and try again.';
+          return '\n\n' + t('scan.errors.connectionErrorTip');
         default:
           return undefined;
       }
@@ -114,8 +116,8 @@ const ScanScreen: React.FC<Props> = () => {
         title, 
         message + (suggestion || ''),
         [
-          { text: 'Try Again', onPress: () => {}, style: 'cancel' },
-          { text: 'OK', style: 'default' },
+          { text: t('common.tryAgain'), onPress: () => {}, style: 'cancel' },
+          { text: t('common.ok'), style: 'default' },
         ]
       );
     } finally {
@@ -129,7 +131,7 @@ const ScanScreen: React.FC<Props> = () => {
     if (result.success && result.base64) {
       await handleImageProcess(result.base64);
     } else if (result.error && result.error !== 'Image capture was cancelled.') {
-      Alert.alert('Error', result.error);
+      Alert.alert(t('common.error'), result.error);
     }
   };
 
@@ -138,7 +140,7 @@ const ScanScreen: React.FC<Props> = () => {
     if (result.success && result.base64) {
       await handleImageProcess(result.base64);
     } else if (result.error && result.error !== 'Image selection was cancelled.') {
-      Alert.alert('Error', result.error);
+      Alert.alert(t('common.error'), result.error);
     }
   };
 
@@ -150,8 +152,8 @@ const ScanScreen: React.FC<Props> = () => {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <LoadingOverlay 
         visible={localAnalyzing} 
-        message="Analyzing Document..."
-        submessage="AI is extracting medications, dosages, and medical details."
+        message={t('scan.analyzing')}
+        submessage={t('scan.analyzingSubtext')}
       />
 
       {/* Header */}
@@ -159,7 +161,7 @@ const ScanScreen: React.FC<Props> = () => {
         <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
           <X size={24} color={colors.text.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Scan Document</Text>
+        <Text style={styles.headerTitle}>{t('scan.scanDocument')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -169,9 +171,9 @@ const ScanScreen: React.FC<Props> = () => {
           <View style={styles.iconCircle}>
             <Sparkles size={48} color={colors.primary[600]} />
           </View>
-          <Text style={styles.title}>AI-Powered Analysis</Text>
+          <Text style={styles.title}>{t('scan.aiPoweredAnalysis')}</Text>
           <Text style={styles.description}>
-            Capture or select a medical document and let AI extract medications, diagnoses, and more.
+            {t('scan.description')}
           </Text>
         </View>
 
@@ -183,7 +185,7 @@ const ScanScreen: React.FC<Props> = () => {
             activeOpacity={0.9}
           >
             <Camera size={24} color={colors.white} />
-            <Text style={styles.primaryButtonText}>Take Photo</Text>
+            <Text style={styles.primaryButtonText}>{t('scan.takePhoto')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -192,14 +194,14 @@ const ScanScreen: React.FC<Props> = () => {
             activeOpacity={0.8}
           >
             <ImageIcon size={24} color={colors.text.primary} />
-            <Text style={styles.secondaryButtonText}>Choose from Gallery</Text>
+            <Text style={styles.secondaryButtonText}>{t('scan.chooseFromGallery')}</Text>
           </TouchableOpacity>
         </View>
 
         {/* Supported formats */}
         <View style={styles.supportedFormats}>
           <Text style={styles.supportedText}>
-            Supported: Prescriptions, Lab Reports, Diagnosis Documents
+            {t('scan.supportedFormats')}
           </Text>
         </View>
       </View>

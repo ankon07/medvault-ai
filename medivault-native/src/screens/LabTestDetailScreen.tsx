@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import {
   ChevronLeft,
   FlaskConical,
@@ -42,6 +43,7 @@ const LabTestDetailScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const route = useRoute<RouteProp<LabTestDetailRouteParams, 'LabTestDetail'>>();
+  const { t } = useTranslation();
   const { labTestId } = route.params;
   
   const { getLabTestRecordById, deleteLabTestRecord } = useRecordStore();
@@ -56,11 +58,11 @@ const LabTestDetailScreen: React.FC = () => {
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <ChevronLeft size={24} color={colors.text.primary} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Lab Test Details</Text>
+          <Text style={styles.headerTitle}>{t('labDetail.title')}</Text>
           <View style={{ width: 40 }} />
         </View>
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>Lab test record not found</Text>
+          <Text style={styles.emptyText}>{t('labDetail.recordNotFound')}</Text>
         </View>
       </View>
     );
@@ -111,6 +113,30 @@ const LabTestDetailScreen: React.FC = () => {
     }
   };
 
+  // Helper to translate status labels
+  const getStatusLabel = (status: string): string => {
+    const statusKey = status.toLowerCase();
+    const statusMap: Record<string, string> = {
+      'normal': t('testAnalyzer.normal'),
+      'low': t('testAnalyzer.low'),
+      'high': t('testAnalyzer.high'),
+      'critical': t('testAnalyzer.critical'),
+    };
+    return statusMap[statusKey] || status.charAt(0).toUpperCase() + status.slice(1);
+  };
+
+  // Helper to translate condition assessment
+  const getConditionLabel = (condition: string): string => {
+    const conditionMap: Record<string, string> = {
+      'Excellent': t('testAnalyzer.excellent'),
+      'Good': t('testAnalyzer.good'),
+      'Fair': t('testAnalyzer.fair'),
+      'Needs Attention': t('testAnalyzer.needsAttention'),
+      'Critical': t('testAnalyzer.critical'),
+    };
+    return conditionMap[condition] || condition;
+  };
+
   const conditionColors = getConditionColor(analysis.conditionAssessment);
 
   const handleDelete = async () => {
@@ -133,7 +159,7 @@ const LabTestDetailScreen: React.FC = () => {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <ChevronLeft size={24} color={colors.text.primary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Lab Test Details</Text>
+        <Text style={styles.headerTitle}>{t('labDetail.title')}</Text>
         <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
           <Trash2 size={20} color={colors.red[500]} />
         </TouchableOpacity>
@@ -153,12 +179,12 @@ const LabTestDetailScreen: React.FC = () => {
 
         <View style={styles.heroDetails}>
           <View style={styles.detailItem}>
-            <Text style={styles.detailLabel}>Lab</Text>
-            <Text style={styles.detailValue}>{analysis.labName || 'Not listed'}</Text>
+            <Text style={styles.detailLabel}>{t('testAnalyzer.lab')}</Text>
+            <Text style={styles.detailValue}>{analysis.labName || t('testAnalyzer.notListed')}</Text>
           </View>
           <View style={styles.detailItem}>
-            <Text style={styles.detailLabel}>Referred By</Text>
-            <Text style={styles.detailValue}>{analysis.referringDoctor || 'Not listed'}</Text>
+            <Text style={styles.detailLabel}>{t('testAnalyzer.referredBy')}</Text>
+            <Text style={styles.detailValue}>{analysis.referringDoctor || t('testAnalyzer.notListed')}</Text>
           </View>
         </View>
       </View>
@@ -170,9 +196,9 @@ const LabTestDetailScreen: React.FC = () => {
             <Heart size={24} color={conditionColors.icon} />
           </View>
           <View style={styles.conditionContent}>
-            <Text style={styles.conditionLabel}>Overall Condition</Text>
+            <Text style={styles.conditionLabel}>{t('testAnalyzer.overallCondition')}</Text>
             <Text style={[styles.conditionValue, { color: conditionColors.text }]}>
-              {analysis.conditionAssessment}
+              {getConditionLabel(analysis.conditionAssessment)}
             </Text>
           </View>
         </View>
@@ -185,17 +211,17 @@ const LabTestDetailScreen: React.FC = () => {
       <View style={styles.summaryCard}>
         <View style={styles.summaryHeader}>
           <Sparkles size={16} color={colors.white} />
-          <Text style={styles.summaryLabel}>AI Health Summary</Text>
+          <Text style={styles.summaryLabel}>{t('testAnalyzer.healthSummary')}</Text>
         </View>
         <Text style={styles.summaryText}>{analysis.healthSummary}</Text>
       </View>
 
       {/* Key Findings */}
-      {analysis.keyFindings.length > 0 && (
+      {(analysis.keyFindings?.length ?? 0) > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <AlertTriangle size={18} color={colors.amber[800]} />
-            <Text style={[styles.sectionTitle, { color: colors.amber[800] }]}>Key Findings</Text>
+            <Text style={[styles.sectionTitle, { color: colors.amber[800] }]}>{t('testAnalyzer.keyFindings')}</Text>
           </View>
           {analysis.keyFindings.map((finding, i) => (
             <View key={i} style={styles.findingItem}>
@@ -207,17 +233,17 @@ const LabTestDetailScreen: React.FC = () => {
       )}
 
       {/* Test Results by Category */}
-      {analysis.testCategories.map((category, catIndex) => (
+      {(analysis.testCategories || []).map((category, catIndex) => (
         <View key={catIndex} style={styles.section}>
           <View style={styles.sectionHeader}>
             <Activity size={18} color={colors.primary[600]} />
             <Text style={styles.sectionTitle}>{category.name}</Text>
             <View style={styles.countBadge}>
-              <Text style={styles.countText}>{category.parameters.length}</Text>
+              <Text style={styles.countText}>{(category.parameters || []).length}</Text>
             </View>
           </View>
           
-          {category.parameters.map((param, paramIndex) => {
+          {(category.parameters || []).map((param, paramIndex) => {
             const statusColors = getStatusColor(param.status);
             return (
               <View key={paramIndex} style={styles.paramCard}>
@@ -226,20 +252,20 @@ const LabTestDetailScreen: React.FC = () => {
                   <View style={[styles.statusBadge, { backgroundColor: statusColors.bg, borderColor: statusColors.border }]}>
                     {getStatusIcon(param.status)}
                     <Text style={[styles.statusText, { color: statusColors.text }]}>
-                      {param.status.charAt(0).toUpperCase() + param.status.slice(1)}
+                      {getStatusLabel(param.status)}
                     </Text>
                   </View>
                 </View>
                 
                 <View style={styles.paramValues}>
                   <View style={styles.paramValueItem}>
-                    <Text style={styles.paramValueLabel}>Result</Text>
+                    <Text style={styles.paramValueLabel}>{t('labDetail.result')}</Text>
                     <Text style={[styles.paramValue, { color: statusColors.text }]}>
                       {param.value} {param.unit}
                     </Text>
                   </View>
                   <View style={styles.paramValueItem}>
-                    <Text style={styles.paramValueLabel}>Reference</Text>
+                    <Text style={styles.paramValueLabel}>{t('labDetail.reference')}</Text>
                     <Text style={styles.paramReference}>{param.referenceRange} {param.unit}</Text>
                   </View>
                 </View>
@@ -254,11 +280,11 @@ const LabTestDetailScreen: React.FC = () => {
       ))}
 
       {/* Recommendations */}
-      {analysis.recommendations.length > 0 && (
+      {(analysis.recommendations?.length ?? 0) > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <CheckCircle2 size={18} color={colors.indigo[800]} />
-            <Text style={[styles.sectionTitle, { color: colors.indigo[800] }]}>Recommendations</Text>
+            <Text style={[styles.sectionTitle, { color: colors.indigo[800] }]}>{t('testAnalyzer.recommendations')}</Text>
           </View>
           {analysis.recommendations.map((rec, i) => (
             <View key={i} style={styles.recommendationItem}>
@@ -276,7 +302,7 @@ const LabTestDetailScreen: React.FC = () => {
       >
         <Eye size={18} color={colors.text.secondary} />
         <Text style={styles.viewOriginalText}>
-          {showOriginal ? 'Hide Original Report' : 'View Original Report'}
+          {showOriginal ? t('testAnalyzer.hideOriginalReport') : t('testAnalyzer.viewOriginalReport')}
         </Text>
       </TouchableOpacity>
 

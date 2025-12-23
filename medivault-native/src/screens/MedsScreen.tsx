@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import {
   Search,
   Plus,
@@ -28,6 +29,7 @@ import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '..
 import { EmptyState } from '../components/common';
 import { useRecordStore } from '../store/useRecordStore';
 import { MainTabScreenProps } from '../navigation/types';
+import { formatNumber } from '../localization';
 
 type Props = MainTabScreenProps<'Meds'>;
 
@@ -58,6 +60,7 @@ const PillProgressBar: React.FC<{ remaining: number; total: number }> = ({ remai
 const MedsScreen: React.FC<Props> = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const { t } = useTranslation();
   const { getAllMedications, loadRecords } = useRecordStore();
   
   const [medications, setMedications] = useState(getAllMedications());
@@ -105,9 +108,9 @@ const MedsScreen: React.FC<Props> = () => {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.title}>My Medicines</Text>
+          <Text style={styles.title}>{t('meds.title')}</Text>
           <Text style={styles.subtitle}>
-            {medications.length} Active Prescriptions
+            {formatNumber(medications.length)} {t('meds.activePrescriptions')}
           </Text>
         </View>
         <TouchableOpacity 
@@ -123,7 +126,7 @@ const MedsScreen: React.FC<Props> = () => {
         <Search size={20} color={colors.gray[400]} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search medicines..."
+          placeholder={t('meds.searchMedicines')}
           placeholderTextColor={colors.gray[400]}
         />
       </View>
@@ -132,8 +135,8 @@ const MedsScreen: React.FC<Props> = () => {
       {medications.length === 0 ? (
         <EmptyState
           icon={<Pill size={32} color={colors.blue[500]} />}
-          title="No medications found"
-          message="Scan a prescription to add meds."
+          title={t('meds.noMeds')}
+          message={t('meds.scanToAdd')}
         />
       ) : (
         <View style={styles.grid}>
@@ -172,7 +175,7 @@ const MedsScreen: React.FC<Props> = () => {
                 <Text style={styles.medDosage}>{med.dosage}</Text>
                 {med.purpose && (
                   <View style={styles.purposeContainer}>
-                    <Text style={styles.purposeLabel}>Treats</Text>
+                    <Text style={styles.purposeLabel}>{t('meds.treats')}</Text>
                     <Text style={styles.purposeText} numberOfLines={1}>
                       {med.purpose}
                     </Text>
@@ -181,7 +184,7 @@ const MedsScreen: React.FC<Props> = () => {
                 
                 {/* Pill Count Progress Bar */}
                 <PillProgressBar remaining={remaining} total={total} />
-                <Text style={styles.pillsLeft}>{remaining} pills left</Text>
+                <Text style={styles.pillsLeft}>{formatNumber(remaining)} {t('meds.pillsLeft')}</Text>
               </TouchableOpacity>
             );
           })}

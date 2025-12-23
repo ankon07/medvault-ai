@@ -210,6 +210,12 @@ export const subscribeToRecords = (
           const record = childSnapshot.val();
           // Remove Firebase-specific fields
           const { userId: _, syncedAt: __, ...cleanRecord } = record;
+          // Ensure analysis arrays are initialized to prevent undefined errors
+          if (cleanRecord.analysis) {
+            cleanRecord.analysis.medications = cleanRecord.analysis.medications || [];
+            cleanRecord.analysis.diagnosis = cleanRecord.analysis.diagnosis || [];
+            cleanRecord.analysis.nextSteps = cleanRecord.analysis.nextSteps || [];
+          }
           records.push(cleanRecord as MedicalRecord);
         });
       }
@@ -957,6 +963,12 @@ export const subscribeToLabTestRecords = (
           const record = childSnapshot.val();
           // Remove Firebase-specific fields
           const { userId: _, syncedAt: __, ...cleanRecord } = record;
+          // Ensure analysis arrays are initialized to prevent undefined errors
+          if (cleanRecord.analysis) {
+            cleanRecord.analysis.testCategories = cleanRecord.analysis.testCategories || [];
+            cleanRecord.analysis.keyFindings = cleanRecord.analysis.keyFindings || [];
+            cleanRecord.analysis.recommendations = cleanRecord.analysis.recommendations || [];
+          }
           records.push(cleanRecord as LabTestRecord);
         });
       }

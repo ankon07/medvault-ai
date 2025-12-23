@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import {
   ChevronLeft,
   ChevronRight,
@@ -82,6 +83,7 @@ const DetailScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const route = useRoute<DetailRouteProp>();
+  const { t } = useTranslation();
   const { getRecordById, deleteRecord } = useRecordStore();
   const [showOriginal, setShowOriginal] = useState(false);
 
@@ -90,7 +92,7 @@ const DetailScreen: React.FC = () => {
   if (!record) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        <Text>Record not found</Text>
+        <Text>{t('detail.recordNotFound')}</Text>
       </View>
     );
   }
@@ -99,12 +101,12 @@ const DetailScreen: React.FC = () => {
 
   const handleDelete = () => {
     Alert.alert(
-      'Delete Record',
-      'Are you sure you want to delete this record?',
+      t('detail.deleteRecord'),
+      t('detail.deleteConfirm'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             await deleteRecord(record.id);
@@ -130,7 +132,7 @@ const DetailScreen: React.FC = () => {
           <ChevronLeft size={24} color={colors.gray[700]} />
         </TouchableOpacity>
         <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>Analysis Report</Text>
+          <Text style={styles.headerTitle}>{t('detail.analysisReport')}</Text>
           <Text style={styles.headerSubtitle}>{analysis.documentType}</Text>
         </View>
         <TouchableOpacity onPress={handleDelete} style={styles.deleteButton}>
@@ -164,12 +166,12 @@ const DetailScreen: React.FC = () => {
 
         <View style={styles.heroDetails}>
           <View style={styles.detailItem}>
-            <Text style={styles.detailLabel}>Doctor</Text>
-            <Text style={styles.detailValue}>{analysis.doctorName || 'Not listed'}</Text>
+            <Text style={styles.detailLabel}>{t('detail.doctor')}</Text>
+            <Text style={styles.detailValue}>{analysis.doctorName || t('detail.notListed')}</Text>
           </View>
           <View style={styles.detailItem}>
-            <Text style={styles.detailLabel}>Facility</Text>
-            <Text style={styles.detailValue}>{analysis.facilityName || 'Not listed'}</Text>
+            <Text style={styles.detailLabel}>{t('detail.facility')}</Text>
+            <Text style={styles.detailValue}>{analysis.facilityName || t('detail.notListed')}</Text>
           </View>
         </View>
       </View>
@@ -178,7 +180,7 @@ const DetailScreen: React.FC = () => {
       <View style={styles.summaryCard}>
         <View style={styles.summaryHeader}>
           <Sparkles size={16} color={colors.white} />
-          <Text style={styles.summaryLabel}>AI Insight</Text>
+          <Text style={styles.summaryLabel}>{t('detail.aiInsight')}</Text>
         </View>
         <Text style={styles.summaryText}>{analysis.summary}</Text>
       </View>
@@ -188,7 +190,7 @@ const DetailScreen: React.FC = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Activity size={18} color={colors.amber[800]} />
-            <Text style={[styles.sectionTitle, { color: colors.amber[800] }]}>Diagnosis</Text>
+            <Text style={[styles.sectionTitle, { color: colors.amber[800] }]}>{t('detail.diagnosis')}</Text>
           </View>
           <View style={styles.tagContainer}>
             {analysis.diagnosis.map((d, i) => (
@@ -205,7 +207,7 @@ const DetailScreen: React.FC = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <CheckCircle2 size={18} color={colors.indigo[800]} />
-            <Text style={[styles.sectionTitle, { color: colors.indigo[800] }]}>Plan</Text>
+            <Text style={[styles.sectionTitle, { color: colors.indigo[800] }]}>{t('detail.plan')}</Text>
           </View>
           {analysis.nextSteps.map((step, i) => (
             <View key={i} style={styles.stepItem}>
@@ -226,7 +228,7 @@ const DetailScreen: React.FC = () => {
           >
             <View style={styles.sectionHeaderLeft}>
               <Pill size={18} color={colors.primary[600]} />
-              <Text style={styles.sectionTitle}>Prescriptions</Text>
+              <Text style={styles.sectionTitle}>{t('detail.prescriptions')}</Text>
               <View style={styles.countBadge}>
                 <Text style={styles.countText}>{analysis.medications.length}</Text>
               </View>
@@ -264,7 +266,7 @@ const DetailScreen: React.FC = () => {
                         />
                       </View>
                       <Text style={styles.progressText}>
-                        {progressData.daysElapsed}/{progressData.totalDays} days taken
+                        {t('detail.daysTaken', { elapsed: progressData.daysElapsed, total: progressData.totalDays })}
                       </Text>
                     </View>
                   )}
@@ -285,7 +287,7 @@ const DetailScreen: React.FC = () => {
           onPress={() => promptAndAddToCalendar(analysis.medications)}
         >
           <CalendarPlus size={20} color={colors.white} />
-          <Text style={styles.calendarButtonText}>Add Reminders to Calendar</Text>
+          <Text style={styles.calendarButtonText}>{t('detail.addReminders')}</Text>
           <Bell size={16} color={colors.primary[200]} />
         </TouchableOpacity>
       )}
@@ -297,7 +299,7 @@ const DetailScreen: React.FC = () => {
       >
         <Eye size={18} color={colors.text.secondary} />
         <Text style={styles.viewOriginalText}>
-          {showOriginal ? 'Hide Original Document' : 'View Original Document'}
+          {showOriginal ? t('detail.hideOriginal') : t('detail.viewOriginal')}
         </Text>
       </TouchableOpacity>
 

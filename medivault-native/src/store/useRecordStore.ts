@@ -469,7 +469,7 @@ export const useRecordStore = create<RecordState>((set, get) => ({
   // Get all medications from all records
   getAllMedications: () => {
     return get().records.flatMap((record) =>
-      record.analysis.medications.map((med) => ({
+      (record.analysis.medications || []).map((med) => ({
         ...med,
         sourceId: record.id,
         sourceDate: record.analysis.date,
@@ -490,7 +490,7 @@ export const useRecordStore = create<RecordState>((set, get) => ({
       labReports: records.filter((r) => r.analysis.documentType === 'Lab Report').length,
       labTestRecords: labTestRecords.length,
       totalMedications: records.reduce(
-        (acc, r) => acc + r.analysis.medications.length,
+        (acc, r) => acc + (r.analysis.medications || []).length,
         0
       ),
     };

@@ -14,6 +14,7 @@ import {
   Pressable,
 } from 'react-native';
 import { ChevronDown, Check, Users } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { colors, spacing, shadows, textStyles } from '../../theme';
 import {
   useFamilyMembers,
@@ -39,6 +40,7 @@ export const FamilyMemberSelector: React.FC<FamilyMemberSelectorProps> = ({
   showManageButton = false,
   onManagePress,
 }) => {
+  const { t } = useTranslation();
   const familyMembers = useFamilyMembers();
   const activeMember = useActiveMember();
   const { setActiveMember } = useFamilyActions();
@@ -108,7 +110,7 @@ export const FamilyMemberSelector: React.FC<FamilyMemberSelectorProps> = ({
           <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
             <View style={styles.modalHeader}>
               <Users size={20} color={colors.primary[600]} />
-              <Text style={styles.modalTitle}>Select Family Member</Text>
+              <Text style={styles.modalTitle}>{t('family.title')}</Text>
             </View>
 
             <ScrollView
@@ -157,7 +159,7 @@ export const FamilyMemberSelector: React.FC<FamilyMemberSelectorProps> = ({
                   onManagePress();
                 }}
               >
-                <Text style={styles.manageButtonText}>Manage Family Members</Text>
+                <Text style={styles.manageButtonText}>{t('family.manageProfiles')}</Text>
               </TouchableOpacity>
             )}
           </Pressable>

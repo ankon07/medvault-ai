@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { User, Plus, Edit2, Trash2, Star, X } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 import { colors, spacing, shadows, textStyles } from '../theme';
 import { Header } from '../components/common';
 import { useAuth } from '../store/useAuthStore';
@@ -29,6 +30,7 @@ import {
 import { FamilyMember } from '../types';
 
 export const FamilyMembersScreen: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const familyMembers = useFamilyMembers();
   const activeMember = useActiveMember();
@@ -87,7 +89,7 @@ export const FamilyMembersScreen: React.FC = () => {
 
   const handleSave = async () => {
     if (!name.trim() || !relationship.trim()) {
-      Alert.alert('Error', 'Please fill in name and relationship');
+      Alert.alert(t('common.error'), t('family.enterNameAndRelation'));
       return;
     }
 
@@ -105,7 +107,7 @@ export const FamilyMembersScreen: React.FC = () => {
           bloodGroup: bloodGroup.trim() || undefined,
           emergencyContact: emergencyContact.trim() || undefined,
         });
-        Alert.alert('Success', 'Family member updated successfully');
+        Alert.alert(t('common.success'), t('family.memberUpdated'));
       } else {
         // Add new member
         const isFirstMember = familyMembers.length === 0;
@@ -118,11 +120,11 @@ export const FamilyMembersScreen: React.FC = () => {
           emergencyContact: emergencyContact.trim() || undefined,
           isPrimary: isFirstMember,
         });
-        Alert.alert('Success', 'Family member added successfully');
+        Alert.alert(t('common.success'), t('family.memberAdded'));
       }
       handleCloseModal();
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to save family member');
+      Alert.alert(t('common.error'), error.message || t('errors.apiError'));
     } finally {
       setIsLoading(false);
     }
@@ -130,20 +132,20 @@ export const FamilyMembersScreen: React.FC = () => {
 
   const handleDelete = (member: FamilyMember) => {
     Alert.alert(
-      'Delete Family Member',
-      `Are you sure you want to delete ${member.name}? This will also delete all their medical records.`,
+      t('family.deleteMember'),
+      t('family.deleteConfirm', { name: member.name }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             if (!user?.uid) return;
             try {
               await removeMember(user.uid, member.id);
-              Alert.alert('Success', 'Family member deleted successfully');
+              Alert.alert(t('common.success'), t('family.memberDeleted'));
             } catch (error: any) {
-              Alert.alert('Error', error.message || 'Failed to delete family member');
+              Alert.alert(t('common.error'), error.message || t('errors.apiError'));
             }
           },
         },
@@ -155,15 +157,15 @@ export const FamilyMembersScreen: React.FC = () => {
     if (!user?.uid) return;
     try {
       await setPrimary(user.uid, member.id);
-      Alert.alert('Success', `${member.name} is now the primary member`);
+      Alert.alert(t('common.success'), t('family.nowPrimary', { name: member.name }));
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to set primary member');
+      Alert.alert(t('common.error'), error.message || t('errors.apiError'));
     }
   };
 
   const handleSelectMember = async (member: FamilyMember) => {
     await setActiveMember(member);
-    Alert.alert('Success', `Switched to ${member.name}'s profile`);
+    Alert.alert(t('common.success'), t('family.switchedTo', { name: member.name }));
   };
 
   const getInitials = (name: string) => {
@@ -177,15 +179,15 @@ export const FamilyMembersScreen: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Header title="Family Members" />
+      <Header title={t('family.title')} />
       
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
-            Manage family member profiles
+            {t('family.manageProfiles')}
           </Text>
           <Text style={styles.sectionDescription}>
-            Add and manage profiles for your family members. Medical records will be separated by member.
+            {t('family.description')}
           </Text>
         </View>
 
@@ -216,21 +218,21 @@ export const FamilyMembersScreen: React.FC = () => {
                   {member.isPrimary && (
                     <View style={styles.primaryBadge}>
                       <Star size={12} color={colors.amber[400]} fill={colors.amber[400]} />
-                      <Text style={styles.primaryText}>Primary</Text>
+                      <Text style={styles.primaryText}>{t('family.primary')}</Text>
                     </View>
                   )}
                   {activeMember?.id === member.id && (
                     <View style={styles.activeBadge}>
-                      <Text style={styles.activeText}>Active</Text>
+                      <Text style={styles.activeText}>{t('family.active')}</Text>
                     </View>
                   )}
                 </View>
                 <Text style={styles.memberRelationship}>{member.relationship}</Text>
                 {member.bloodGroup && (
-                  <Text style={styles.memberDetail}>Blood Group: {member.bloodGroup}</Text>
+                  <Text style={styles.memberDetail}>{t('family.bloodGroup')}: {member.bloodGroup}</Text>
                 )}
                 {member.dateOfBirth && (
-                  <Text style={styles.memberDetail}>DOB: {member.dateOfBirth}</Text>
+                  <Text style={styles.memberDetail}>{t('family.dateOfBirth')}: {member.dateOfBirth}</Text>
                 )}
               </View>
             </TouchableOpacity>
@@ -267,7 +269,7 @@ export const FamilyMembersScreen: React.FC = () => {
           onPress={() => handleOpenModal()}
         >
           <Plus size={24} color={colors.primary[600]} />
-          <Text style={styles.addButtonText}>Add Family Member</Text>
+          <Text style={styles.addButtonText}>{t('family.addMember')}</Text>
         </TouchableOpacity>
       </ScrollView>
 
@@ -281,7 +283,7 @@ export const FamilyMembersScreen: React.FC = () => {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>
-              {editingMember ? 'Edit Family Member' : 'Add Family Member'}
+              {editingMember ? t('family.editMember') : t('family.addMember')}
             </Text>
             <TouchableOpacity onPress={handleCloseModal}>
               <X size={24} color={colors.gray[600]} />
@@ -290,29 +292,29 @@ export const FamilyMembersScreen: React.FC = () => {
 
           <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Name *</Text>
+              <Text style={styles.label}>{t('family.name')} *</Text>
               <TextInput
                 style={styles.input}
                 value={name}
                 onChangeText={setName}
-                placeholder="Enter name"
+                placeholder={t('family.name')}
                 placeholderTextColor={colors.gray[400]}
               />
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Relationship *</Text>
+              <Text style={styles.label}>{t('family.relationship')} *</Text>
               <TextInput
                 style={styles.input}
                 value={relationship}
                 onChangeText={setRelationship}
-                placeholder="e.g., Self, Spouse, Child, Parent"
+                placeholder={t('family.relationship')}
                 placeholderTextColor={colors.gray[400]}
               />
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Date of Birth</Text>
+              <Text style={styles.label}>{t('family.dateOfBirth')}</Text>
               <TextInput
                 style={styles.input}
                 value={dateOfBirth}
@@ -323,7 +325,7 @@ export const FamilyMembersScreen: React.FC = () => {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Gender</Text>
+              <Text style={styles.label}>{t('family.gender')}</Text>
               <View style={styles.genderButtons}>
                 {(['Male', 'Female', 'Other'] as const).map((g) => (
                   <TouchableOpacity
@@ -340,7 +342,7 @@ export const FamilyMembersScreen: React.FC = () => {
                         gender === g && styles.genderButtonTextActive,
                       ]}
                     >
-                      {g}
+                      {t(`family.${g.toLowerCase()}`)}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -348,23 +350,23 @@ export const FamilyMembersScreen: React.FC = () => {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Blood Group</Text>
+              <Text style={styles.label}>{t('family.bloodGroup')}</Text>
               <TextInput
                 style={styles.input}
                 value={bloodGroup}
                 onChangeText={setBloodGroup}
-                placeholder="e.g., A+, B-, O+"
+                placeholder="A+, B-, O+"
                 placeholderTextColor={colors.gray[400]}
               />
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Emergency Contact</Text>
+              <Text style={styles.label}>{t('family.emergencyContact')}</Text>
               <TextInput
                 style={styles.input}
                 value={emergencyContact}
                 onChangeText={setEmergencyContact}
-                placeholder="Phone number"
+                placeholder={t('family.emergencyContact')}
                 keyboardType="phone-pad"
                 placeholderTextColor={colors.gray[400]}
               />
@@ -377,7 +379,7 @@ export const FamilyMembersScreen: React.FC = () => {
               onPress={handleCloseModal}
               disabled={isLoading}
             >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.modalButton, styles.saveButton]}
@@ -387,7 +389,7 @@ export const FamilyMembersScreen: React.FC = () => {
               {isLoading ? (
                 <ActivityIndicator color={colors.white} />
               ) : (
-                <Text style={styles.saveButtonText}>Save</Text>
+                <Text style={styles.saveButtonText}>{t('common.save')}</Text>
               )}
             </TouchableOpacity>
           </View>
