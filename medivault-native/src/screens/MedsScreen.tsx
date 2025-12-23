@@ -3,7 +3,7 @@
  * Grid view of all medications with pill count tracking
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,9 +11,10 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import {
   Search,
   Plus,
@@ -57,9 +58,20 @@ const PillProgressBar: React.FC<{ remaining: number; total: number }> = ({ remai
 const MedsScreen: React.FC<Props> = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { getAllMedications } = useRecordStore();
+  const { getAllMedications, loadRecords } = useRecordStore();
   
-  const medications = getAllMedications();
+  const [medications, setMedications] = useState(getAllMedications());
+
+  // Refresh medications when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      const refreshMedications = async () => {
+        await loadRecords();
+        setMedications(getAllMedications());
+      };
+      refreshMedications();
+    }, [])
+  );
 
   const getMedIcon = (type?: string) => {
     if (type?.toLowerCase().includes('syrup')) return Droplets;
@@ -140,9 +152,20 @@ const MedsScreen: React.FC<Props> = () => {
                     <CheckCircle2 size={16} color={colors.green[500]} />
                   </View>
                 )}
-                <View style={styles.medIcon}>
-                  <IconComponent size={32} color={colors.blue[500]} />
-                </View>
+                {/* Display medicine image if available, otherwise show icon */}
+                {med.pricing?.imageUrl ? (
+                  <View style={styles.medImageContainer}>
+                    <Image
+                      source={{ uri: `data:image/jpeg;base64,${med.pricing.imageUrl}` }}
+                      style={styles.medImage}
+                      resizeMode="cover"
+                    />
+                  </View>
+                ) : (
+                  <View style={styles.medIcon}>
+                    <IconComponent size={32} color={colors.blue[500]} />
+                  </View>
+                )}
                 <Text style={styles.medName} numberOfLines={1}>
                   {med.name}
                 </Text>
@@ -249,6 +272,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing['3'],
+  },
+  medImageContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: borderRadius['2xl'],
+    overflow: 'hidden',
+    marginBottom: spacing['3'],
+    backgroundColor: colors.gray[50],
+    ...shadows.sm,
+  },
+  medImage: {
+    width: '100%',
+    height: '100%',
   },
   medName: {
     fontSize: fontSize.lg,

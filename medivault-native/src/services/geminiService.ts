@@ -654,4 +654,212 @@ export const analyzeLabTestReport = async (
   }
 };
 
-export default { analyzeMedicalDocument, analyzeLabTestReport, isGeminiConfigured };
+/**
+ * Schema for medicine pricing extraction
+ */
+const medicinePricingSchema = {
+  type: SchemaType.OBJECT,
+  properties: {
+    medicineName: { 
+      type: SchemaType.STRING, 
+      description: 'Name of the medicine from the pack/box' 
+    },
+    packSize: { 
+      type: SchemaType.STRING, 
+      description: 'Pack size (e.g., "10 tablets", "30ml syrup", "1 tube")' 
+    },
+    totalPrice: { 
+      type: SchemaType.STRING, 
+      description: 'Total price/MRP in BDT (e.g., "15.00 BDT", "৳25.50")' 
+    },
+    unitCost: { 
+      type: SchemaType.STRING, 
+      description: 'Unit cost per tablet/ml/unit (e.g., "1.50 BDT per tablet", "৳0.85 per ml")' 
+    },
+    manufacturer: { 
+      type: SchemaType.STRING, 
+      description: 'Manufacturer or brand name if visible' 
+    },
+    expiryDate: { 
+      type: SchemaType.STRING, 
+      description: 'Expiry date if visible (Format: MMM YYYY or MM/YYYY)' 
+    },
+  },
+  required: ['medicineName', 'packSize', 'totalPrice', 'unitCost'],
+};
+
+/**
+ * Prompt for medicine pricing analysis
+ */
+const PRICING_ANALYSIS_PROMPT = `You are an expert pharmaceutical analyst AI. Analyze this image of a medicine pack, box, or label and extract pricing information.
+
+IMPORTANT INSTRUCTIONS:
+1. Extract the medicine name exactly as shown on the pack
+2. Identify the pack size (number of tablets, ml of syrup, etc.)
+3. Find the MRP/price printed on the pack (usually near barcode)
+4. Calculate the unit cost by dividing total price by pack size
+5. Extract manufacturer/brand name if visible
+6. Extract expiry date if visible
+7. Use BDT (৳) for currency
+
+CALCULATION EXAMPLE:
+- If pack has "10 tablets" and MRP is "৳15.00"
+- Unit cost = 15.00 / 10 = "1.50 BDT per tablet"
+
+IMPORTANT: If the image is NOT a medicine pack/box/label, or if pricing information is not visible, you must still return valid JSON but set:
+- medicineName: "Unable to identify"
+- packSize: "Not visible"
+- totalPrice: "Not visible"
+- unitCost: "Not visible"
+- manufacturer: "Not visible"`;
+
+/**
+ * Validates if the pricing analysis result is valid
+ * @param data - The pricing analysis result
+ * @returns boolean indicating if it's valid pricing data
+ */
+const isValidPricingAnalysis = (data: any): boolean => {
+  // Check if AI indicated unable to identify
+  if (data.medicineName === 'Unable to identify' || 
+      data.totalPrice === 'Not visible' ||
+      data.unitCost === 'Not visible') {
+    return false;
+  }
+  
+  // Check for meaningful content
+  const hasValidName = Boolean(data.medicineName && data.medicineName.length > 2);
+  const hasValidPrice = Boolean(data.totalPrice && data.totalPrice.length > 0);
+  const hasValidUnit = Boolean(data.unitCost && data.unitCost.length > 0);
+  
+  return hasValidName && hasValidPrice && hasValidUnit;
+};
+
+/**
+ * Analyze a medicine pack/box image to extract pricing information using Gemini AI
+ * @param base64Image - Base64 encoded image data
+ * @param expectedMedicineName - The expected medicine name for verification (optional)
+ * @returns Promise resolving to MedicinePricing
+ */
+export const analyzeMedicinePricing = async (
+  base64Image: string,
+  expectedMedicineName?: string
+): Promise<import('../types').MedicinePricing> => {
+  // Validate API key
+  if (!GEMINI_API_KEY) {
+    throw new ImageAnalysisError(
+      'Gemini API key is not configured. Please add it to your .env file.',
+      ERROR_CODES.API_KEY_INVALID
+    );
+  }
+
+  // Validate base64 image
+  if (!base64Image || base64Image.length < 100) {
+    throw new ImageAnalysisError(
+      'Invalid image data. Please try capturing the image again.',
+      ERROR_CODES.INVALID_IMAGE
+    );
+  }
+
+  const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+  
+  const model = genAI.getGenerativeModel({
+    model: API_CONFIG.GEMINI_MODEL,
+    generationConfig: {
+      responseMimeType: 'application/json',
+      responseSchema: medicinePricingSchema,
+      temperature: 0.1, // Low temperature for accurate extraction
+    },
+    safetySettings: SAFETY_SETTINGS,
+  });
+
+  try {
+    // Add expected medicine name to prompt if provided
+    let prompt = PRICING_ANALYSIS_PROMPT;
+    if (expectedMedicineName) {
+      prompt += `\n\nEXPECTED MEDICINE: ${expectedMedicineName}\nPlease verify the medicine name matches or is similar to this.`;
+    }
+
+    const result = await model.generateContent([
+      {
+        inlineData: {
+          mimeType: 'image/jpeg',
+          data: base64Image,
+        },
+      },
+      prompt,
+    ]);
+
+    const response = result.response;
+    
+    // Check for blocked content
+    if (response.promptFeedback?.blockReason) {
+      throw new ImageAnalysisError(
+        'This image could not be processed. Please try a different image.',
+        ERROR_CODES.SAFETY_BLOCKED
+      );
+    }
+    
+    const text = response.text();
+    
+    if (!text || text.trim().length === 0) {
+      throw new ImageAnalysisError(
+        'Unable to analyze this image. Please ensure it\'s a clear photo of a medicine pack.',
+        ERROR_CODES.INVALID_IMAGE
+      );
+    }
+
+    let data: any;
+    
+    try {
+      data = JSON.parse(text);
+    } catch (parseError) {
+      throw new ImageAnalysisError(
+        'Unable to process the AI response. Please try again.',
+        ERROR_CODES.PARSE_ERROR
+      );
+    }
+    
+    // Validate required fields
+    if (!data.medicineName || !data.packSize || !data.totalPrice || !data.unitCost) {
+      throw new ImageAnalysisError(
+        'Unable to extract pricing information from this image. Please try a clearer photo.',
+        ERROR_CODES.VALIDATION_ERROR
+      );
+    }
+
+    // Check if it's actually valid pricing data
+    if (!isValidPricingAnalysis(data)) {
+      throw new ImageAnalysisError(
+        'This image doesn\'t appear to show medicine pricing information clearly. Please capture the medicine pack with visible MRP/price.',
+        ERROR_CODES.NOT_MEDICAL_DOCUMENT
+      );
+    }
+
+    // Return complete pricing data
+    return {
+      medicineName: data.medicineName,
+      packSize: data.packSize,
+      totalPrice: data.totalPrice,
+      unitCost: data.unitCost,
+      manufacturer: data.manufacturer,
+      expiryDate: data.expiryDate,
+      extractedAt: Date.now(),
+      imageUrl: base64Image,
+    };
+  } catch (error) {
+    // Re-throw ImageAnalysisError as is
+    if (error instanceof ImageAnalysisError) {
+      throw error;
+    }
+    
+    // Parse and throw appropriate error
+    throw parseGeminiError(error);
+  }
+};
+
+export default { 
+  analyzeMedicalDocument, 
+  analyzeLabTestReport, 
+  analyzeMedicinePricing,
+  isGeminiConfigured 
+};

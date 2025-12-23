@@ -8,3 +8,4 @@ export { Card } from './Card';
 export { Header } from './Header';
 export { LoadingOverlay } from './LoadingOverlay';
 export { EmptyState } from './EmptyState';
+export { FamilyMemberSelector } from './FamilyMemberSelector';

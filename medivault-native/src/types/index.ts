@@ -27,6 +27,8 @@ export interface Medication {
   totalPills?: number;
   /** Number of pills remaining */
   pillsRemaining?: number;
+  /** Pricing information from medicine pack analysis */
+  pricing?: MedicinePricing;
 }
 
 /**
@@ -91,6 +93,42 @@ export type MainTabParamList = {
   History: undefined;
   Tests: undefined;
 };
+
+/**
+ * Medicine pricing information extracted from medicine pack/box image
+ */
+export interface MedicinePricing {
+  /** Medicine name from the pack */
+  medicineName: string;
+  /** Pack size (e.g., "10 tablets", "30ml syrup") */
+  packSize: string;
+  /** Total price/MRP in BDT */
+  totalPrice: string;
+  /** Unit cost per tablet/ml */
+  unitCost: string;
+  /** Manufacturer/brand name */
+  manufacturer?: string;
+  /** Expiry date if visible */
+  expiryDate?: string;
+  /** Timestamp when pricing was extracted */
+  extractedAt: number;
+  /** Base64 image of the medicine pack (optional if manually entered) */
+  imageUrl?: string;
+}
+
+/**
+ * Pharmacy information for ordering medicine
+ */
+export interface PharmacyLink {
+  /** Pharmacy name */
+  name: string;
+  /** Base URL for medicine search */
+  baseUrl: string;
+  /** Icon name from Lucide */
+  icon: string;
+  /** Color for the button */
+  color: string;
+}
 
 /**
  * Extended medication with source tracking
@@ -263,4 +301,46 @@ export interface TakenMedication {
   sourceId: string;
   /** Dosage of the medication */
   dosage?: string;
+}
+
+/**
+ * Family member profile
+ */
+export interface FamilyMember {
+  /** Unique identifier */
+  id: string;
+  /** Name of the family member */
+  name: string;
+  /** Relationship to the user (e.g., "Self", "Spouse", "Child", "Parent") */
+  relationship: string;
+  /** Date of birth */
+  dateOfBirth?: string;
+  /** Gender */
+  gender?: 'Male' | 'Female' | 'Other';
+  /** Blood group */
+  bloodGroup?: string;
+  /** Avatar image (base64 or URL) */
+  avatarUrl?: string;
+  /** Allergies */
+  allergies?: string[];
+  /** Chronic conditions */
+  chronicConditions?: string[];
+  /** Emergency contact */
+  emergencyContact?: string;
+  /** Additional notes */
+  notes?: string;
+  /** Created timestamp */
+  createdAt: number;
+  /** Last updated timestamp */
+  updatedAt: number;
+  /** Whether this is the primary/default member */
+  isPrimary?: boolean;
+}
+
+/**
+ * Family member with avatar colors for UI
+ */
+export interface FamilyMemberWithColor extends FamilyMember {
+  /** Avatar background color */
+  avatarColor: string;
 }

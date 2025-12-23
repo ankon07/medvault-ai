@@ -357,8 +357,13 @@ export const useRecordStore = create<RecordState>((set, get) => ({
     }
     
     try {
+      // Get active family member ID from family store
+      const { useFamilyStore } = require('./useFamilyStore');
+      const activeMember = useFamilyStore.getState().activeMember;
+      const memberId = activeMember?.id;
+      
       // Update in Firebase - real-time subscription will update the store
-      await firebaseUpdateMedicationProof(userId, recordId, medicationName, proofImage);
+      await firebaseUpdateMedicationProof(userId, recordId, medicationName, proofImage, memberId);
       
       // Also update local storage
       await storageService.updateMedicationProof(recordId, medicationName, proofImage);
@@ -383,6 +388,11 @@ export const useRecordStore = create<RecordState>((set, get) => ({
     }
     
     try {
+      // Get active family member ID from family store
+      const { useFamilyStore } = require('./useFamilyStore');
+      const activeMember = useFamilyStore.getState().activeMember;
+      const memberId = activeMember?.id;
+      
       // Find the record and medication to calculate new count
       const record = records.find(r => r.id === recordId);
       if (!record) {
@@ -398,8 +408,8 @@ export const useRecordStore = create<RecordState>((set, get) => ({
       const currentRemaining = medication.pillsRemaining ?? totalPills;
       const newRemaining = Math.max(0, currentRemaining - 1);
       
-      // Update in Firebase
-      await updateMedicationPillCount(userId, recordId, medicationName, newRemaining);
+      // Update in Firebase with memberId support
+      await updateMedicationPillCount(userId, recordId, medicationName, newRemaining, memberId);
       
       // Also update local storage
       const updatedRecord = {

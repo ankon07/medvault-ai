@@ -23,6 +23,7 @@ import {
   ChevronRight,
   Calendar,
   FileBadge,
+  Users,
 } from 'lucide-react-native';
 
 import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '../theme';
@@ -146,6 +147,18 @@ const HomeScreen: React.FC<Props> = () => {
             </View>
             <Text style={styles.statNumber}>{stats.labTestRecords}</Text>
             <Text style={styles.statLabel}>Test Analyzer</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.statCard}
+            onPress={() => navigation.navigate('FamilyMembers' as never)}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.statIcon, { backgroundColor: colors.green[100] }]}>
+              <Users size={22} color={colors.green[600]} />
+            </View>
+            <Text style={styles.statNumber}>•••</Text>
+            <Text style={styles.statLabel}>Family Members</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 

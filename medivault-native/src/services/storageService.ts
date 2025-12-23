@@ -206,6 +206,48 @@ class StorageService {
       throw error;
     }
   }
+
+  /**
+   * Update medication pricing information
+   * @param recordId - ID of the source record
+   * @param medicationName - Name of the medication
+   * @param pricing - MedicinePricing data
+   */
+  async updateMedicationPricing(
+    recordId: string,
+    medicationName: string,
+    pricing: import('../types').MedicinePricing
+  ): Promise<void> {
+    try {
+      const records = await this.getRecords();
+      const recordIndex = records.findIndex(r => r.id === recordId);
+      
+      if (recordIndex === -1) {
+        throw new Error('Record not found');
+      }
+      
+      const record = records[recordIndex];
+      const medIndex = record.analysis.medications.findIndex(
+        m => m.name === medicationName
+      );
+      
+      if (medIndex === -1) {
+        throw new Error('Medication not found');
+      }
+      
+      // Update the medication pricing
+      record.analysis.medications[medIndex].pricing = pricing;
+      records[recordIndex] = record;
+      
+      await AsyncStorage.setItem(
+        STORAGE_KEYS.RECORDS, 
+        JSON.stringify(records)
+      );
+    } catch (error) {
+      console.error('Error updating medication pricing:', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instance
