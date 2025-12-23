@@ -7,6 +7,7 @@ import { GoogleGenerativeAI, SchemaType, HarmCategory, HarmBlockThreshold } from
 import { GEMINI_API_KEY } from '@env';
 import { MedicalAnalysis, LabTestAnalysis } from '../types';
 import { API_CONFIG } from '../constants';
+import { getLanguageNameForAI, getCurrentLanguage } from '../localization';
 
 /**
  * Custom error class for image analysis errors
@@ -152,7 +153,28 @@ const analysisSchema = {
 };
 
 /**
- * Prompt for the AI model
+ * Generate analysis prompt with language directive
+ * @param language - Target language for output (English or Bengali)
+ */
+const getAnalysisPrompt = (language: string): string => {
+  const languageDirective = language === 'Bengali' 
+    ? '\n\nIMPORTANT LANGUAGE DIRECTIVE: Output ALL text content (title, summary, diagnosis descriptions, medication purposes, side effects, and nextSteps) in Bengali/Bangla language. Keep medication names, dosages, and medical terms in English for accuracy, but all descriptive text should be in Bengali.'
+    : '';
+
+  return `You are an expert medical assistant AI. Analyze this image of a medical document (prescription, report, or notes). Extract all relevant medical data into the specified JSON structure. Be extremely precise with medication names and dosages. If handwriting is hard to read, infer from context but mark uncertain parts. Format dates cleanly. Populate the purpose and side effects fields for medications based on general medical knowledge if not explicitly stated in text.
+
+IMPORTANT: If the image is NOT a medical document (prescription, lab report, diagnosis, or medical notes), you must still return a valid JSON but set:
+- title: "Not a Medical Document"
+- documentType: "Other"
+- summary: "This image does not appear to be a medical document. Please upload a prescription, lab report, or medical diagnosis document."
+- diagnosis: []
+- medications: []
+- nextSteps: []${languageDirective}`;
+};
+
+/**
+ * @deprecated Use getAnalysisPrompt() function instead
+ * Original prompt for backward compatibility
  */
 const ANALYSIS_PROMPT = `You are an expert medical assistant AI. Analyze this image of a medical document (prescription, report, or notes). Extract all relevant medical data into the specified JSON structure. Be extremely precise with medication names and dosages. If handwriting is hard to read, infer from context but mark uncertain parts. Format dates cleanly. Populate the purpose and side effects fields for medications based on general medical knowledge if not explicitly stated in text.
 
@@ -301,6 +323,10 @@ export const analyzeMedicalDocument = async (
   });
 
   try {
+    // Get the current language for the prompt
+    const currentLanguage = getLanguageNameForAI();
+    const prompt = getAnalysisPrompt(currentLanguage);
+
     const result = await model.generateContent([
       {
         inlineData: {
@@ -308,7 +334,7 @@ export const analyzeMedicalDocument = async (
           data: base64Image,
         },
       },
-      ANALYSIS_PROMPT,
+      prompt,
     ]);
 
     const response = result.response;
@@ -495,7 +521,42 @@ const labTestSchema = {
 };
 
 /**
- * Prompt for lab test analysis
+ * Generate lab test prompt with language directive
+ * @param language - Target language for output (English or Bengali)
+ */
+const getLabTestPrompt = (language: string): string => {
+  const languageDirective = language === 'Bengali' 
+    ? '\n\nIMPORTANT LANGUAGE DIRECTIVE: Output ALL text content (title, healthSummary, keyFindings, recommendations, interpretations, and conditionExplanation) in Bengali/Bangla language. Keep test names, values, units, reference ranges, and medical terms in English for accuracy, but all descriptive and explanatory text should be in Bengali.'
+    : '';
+
+  return `You are an expert medical laboratory analyst AI. Analyze this image of a lab test report and extract all test parameters with their values, units, and reference ranges.
+
+IMPORTANT INSTRUCTIONS:
+1. Extract ALL test parameters visible in the report
+2. For each parameter, determine if it's normal, low, high, or critical based on the reference range
+3. Group related tests into appropriate categories (e.g., CBC, Lipid Panel, Liver Function, Kidney Function, etc.)
+4. Provide a clear, patient-friendly health summary
+5. Highlight any abnormal values that need attention
+6. Provide actionable recommendations based on the results
+7. Assess the overall patient condition (Excellent/Good/Fair/Needs Attention/Critical)
+8. Explain the condition assessment in simple terms
+
+Be precise with values and units. If handwriting is hard to read, infer from context. Format dates cleanly.
+
+IMPORTANT: If the image is NOT a lab test report (blood test, urine test, metabolic panel, etc.), you must still return a valid JSON but set:
+- title: "Not a Lab Test Report"
+- date: "Undated"
+- testCategories: []
+- healthSummary: "This image does not appear to be a lab test report. Please upload a blood test, urine test, or other laboratory test results."
+- keyFindings: []
+- recommendations: []
+- conditionAssessment: "Fair"
+- conditionExplanation: "Unable to analyze - image does not appear to be a lab test report."${languageDirective}`;
+};
+
+/**
+ * @deprecated Use getLabTestPrompt() function instead
+ * Original prompt for backward compatibility
  */
 const LAB_TEST_PROMPT = `You are an expert medical laboratory analyst AI. Analyze this image of a lab test report and extract all test parameters with their values, units, and reference ranges.
 
@@ -581,6 +642,10 @@ export const analyzeLabTestReport = async (
   });
 
   try {
+    // Get the current language for the prompt
+    const currentLanguage = getLanguageNameForAI();
+    const prompt = getLabTestPrompt(currentLanguage);
+
     const result = await model.generateContent([
       {
         inlineData: {
@@ -588,7 +653,7 @@ export const analyzeLabTestReport = async (
           data: base64Image,
         },
       },
-      LAB_TEST_PROMPT,
+      prompt,
     ]);
 
     const response = result.response;

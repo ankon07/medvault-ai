@@ -9,3 +9,4 @@ export { Header } from './Header';
 export { LoadingOverlay } from './LoadingOverlay';
 export { EmptyState } from './EmptyState';
 export { FamilyMemberSelector } from './FamilyMemberSelector';
+export { default as LanguageToggle } from './LanguageToggle';

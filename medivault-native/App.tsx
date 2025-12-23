@@ -15,6 +15,9 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 // Import Firebase config to ensure it's initialized
 import './src/config/firebase';
 
+// Import i18n to initialize localization
+import './src/localization/i18n';
+
 import RootNavigator from './src/navigation/RootNavigator';
 import AuthNavigator from './src/navigation/AuthNavigator';
 import { useRecordStore } from './src/store/useRecordStore';

@@ -1,0 +1,148 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done",
+    "retry": "Retry",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "seeAll": "See All"
+  },
+  "greeting": {
+    "morning": "Good Morning",
+    "afternoon": "Good Afternoon",
+    "evening": "Good Evening"
+  },
+  "home": {
+    "latestUpdate": "Latest Update",
+    "noRecordsYet": "No records yet",
+    "scanNewDocument": "Scan New Document",
+    "quickAccess": "Quick Access",
+    "notebook": "Notebook",
+    "testAnalyzer": "Test Analyzer",
+    "activeMedicines": "Active Medicines",
+    "recentHistory": "Recent History",
+    "noRecordsFound": "No records found",
+    "scanFirstDocument": "Scan your first document!"
+  },
+  "auth": {
+    "welcomeBack": "Welcome back!",
+    "signInToContinue": "Sign in to continue to MediVault",
+    "email": "Email Address",
+    "password": "Password",
+    "forgotPassword": "Forgot Password?",
+    "signIn": "Sign In",
+    "orContinueWith": "Or continue with",
+    "signInWithGoogle": "Sign in with Google",
+    "dontHaveAccount": "Don't have an account?",
+    "signUp": "Sign Up",
+    "createAccount": "Create Account",
+    "joinMediVault": "Join MediVault to manage your health records",
+    "fullName": "Full Name",
+    "confirmPassword": "Confirm Password",
+    "alreadyHaveAccount": "Already have an account?",
+    "resetPassword": "Reset Password",
+    "enterEmailToReset": "Enter your email address and we'll send you a link to reset your password.",
+    "sendResetLink": "Send Reset Link",
+    "backToLogin": "Back to Login",
+    "enableBiometric": "Enable {{type}} Login?",
+    "biometricPrompt": "Would you like to use {{type}} for faster, secure login next time?",
+    "notNow": "Not Now",
+    "enable": "Enable"
+  },
+  "scan": {
+    "scanDocument": "Scan Document",
+    "takePhoto": "Take Photo",
+    "chooseFromGallery": "Choose from Gallery",
+    "analyzing": "Analyzing...",
+    "processingDocument": "Processing your document with AI...",
+    "scanSuccess": "Document scanned successfully!",
+    "scanError": "Failed to scan document",
+    "tryAgain": "Please try again with a clearer image"
+  },
+  "history": {
+    "title": "History",
+    "allRecords": "All Records",
+    "searchPlaceholder": "Search records...",
+    "filterByType": "Filter by type",
+    "noRecords": "No records found",
+    "startScanning": "Start scanning your medical documents"
+  },
+  "detail": {
+    "summary": "Summary",
+    "diagnosis": "Diagnosis",
+    "medications": "Medications",
+    "nextSteps": "Next Steps",
+    "doctorInfo": "Doctor Information",
+    "facilityInfo": "Facility Information",
+    "patientInfo": "Patient Information",
+    "deleteRecord": "Delete Record",
+    "deleteConfirm": "Are you sure you want to delete this record?",
+    "dosage": "Dosage",
+    "frequency": "Frequency",
+    "duration": "Duration",
+    "purpose": "Purpose",
+    "sideEffects": "Side Effects"
+  },
+  "meds": {
+    "title": "Medications",
+    "activeMeds": "Active Medications",
+    "allMeds": "All Medications",
+    "noMeds": "No medications found",
+    "trackMeds": "Your prescribed medicines will appear here"
+  },
+  "schedule": {
+    "title": "Schedule",
+    "upcoming": "Upcoming",
+    "today": "Today",
+    "thisWeek": "This Week",
+    "noSchedule": "No scheduled events",
+    "addToCalendar": "Add to Calendar"
+  },
+  "testAnalyzer": {
+    "title": "Test Analyzer",
+    "scanLabReport": "Scan Lab Report",
+    "healthSummary": "Health Summary",
+    "keyFindings": "Key Findings",
+    "recommendations": "Recommendations",
+    "testCategories": "Test Categories",
+    "overallCondition": "Overall Condition",
+    "normal": "Normal",
+    "low": "Low",
+    "high": "High",
+    "critical": "Critical"
+  },
+  "labDetail": {
+    "testResults": "Test Results",
+    "value": "Value",
+    "reference": "Reference",
+    "status": "Status",
+    "interpretation": "Interpretation"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "notifications": "Notifications",
+    "biometric": "Biometric Login",
+    "about": "About",
+    "logout": "Logout",
+    "logoutConfirm": "Are you sure you want to logout?"
+  },
+  "errors": {
+    "networkError": "Network error. Please check your connection.",
+    "apiError": "Something went wrong. Please try again.",
+    "invalidImage": "Invalid image. Please try again.",
+    "notMedicalDocument": "This doesn't appear to be a medical document.",
+    "storageFull": "Storage is full. Please delete some records."
+  }
+}

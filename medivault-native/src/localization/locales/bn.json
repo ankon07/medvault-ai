@@ -1,0 +1,148 @@
+{
+  "common": {
+    "loading": "লোড হচ্ছে...",
+    "error": "ত্রুটি",
+    "success": "সফল",
+    "cancel": "বাতিল",
+    "confirm": "নিশ্চিত",
+    "save": "সংরক্ষণ",
+    "delete": "মুছুন",
+    "edit": "সম্পাদনা",
+    "back": "পিছনে",
+    "next": "পরবর্তী",
+    "done": "সম্পন্ন",
+    "retry": "আবার চেষ্টা",
+    "close": "বন্ধ",
+    "yes": "হ্যাঁ",
+    "no": "না",
+    "ok": "ঠিক আছে",
+    "seeAll": "সব দেখুন"
+  },
+  "greeting": {
+    "morning": "সুপ্রভাত",
+    "afternoon": "শুভ অপরাহ্ন",
+    "evening": "শুভ সন্ধ্যা"
+  },
+  "home": {
+    "latestUpdate": "সর্বশেষ আপডেট",
+    "noRecordsYet": "এখনো কোন রেকর্ড নেই",
+    "scanNewDocument": "নতুন ডকুমেন্ট স্ক্যান করুন",
+    "quickAccess": "দ্রুত প্রবেশ",
+    "notebook": "নোটবুক",
+    "testAnalyzer": "পরীক্ষা বিশ্লেষক",
+    "activeMedicines": "সক্রিয় ওষুধ",
+    "recentHistory": "সাম্প্রতিক ইতিহাস",
+    "noRecordsFound": "কোন রেকর্ড পাওয়া যায়নি",
+    "scanFirstDocument": "আপনার প্রথম ডকুমেন্ট স্ক্যান করুন!"
+  },
+  "auth": {
+    "welcomeBack": "স্বাগতম!",
+    "signInToContinue": "MediVault-এ চালিয়ে যেতে সাইন ইন করুন",
+    "email": "ইমেইল ঠিকানা",
+    "password": "পাসওয়ার্ড",
+    "forgotPassword": "পাসওয়ার্ড ভুলে গেছেন?",
+    "signIn": "সাইন ইন",
+    "orContinueWith": "অথবা এর সাথে চালিয়ে যান",
+    "signInWithGoogle": "Google দিয়ে সাইন ইন",
+    "dontHaveAccount": "অ্যাকাউন্ট নেই?",
+    "signUp": "সাইন আপ",
+    "createAccount": "অ্যাকাউন্ট তৈরি করুন",
+    "joinMediVault": "আপনার স্বাস্থ্য রেকর্ড পরিচালনা করতে MediVault-এ যোগ দিন",
+    "fullName": "পুরো নাম",
+    "confirmPassword": "পাসওয়ার্ড নিশ্চিত করুন",
+    "alreadyHaveAccount": "ইতিমধ্যে একটি অ্যাকাউন্ট আছে?",
+    "resetPassword": "পাসওয়ার্ড রিসেট",
+    "enterEmailToReset": "আপনার ইমেইল ঠিকানা লিখুন এবং আমরা আপনাকে পাসওয়ার্ড রিসেট করার লিংক পাঠাব।",
+    "sendResetLink": "রিসেট লিংক পাঠান",
+    "backToLogin": "লগইনে ফিরে যান",
+    "enableBiometric": "{{type}} লগইন সক্ষম করবেন?",
+    "biometricPrompt": "পরের বার দ্রুত, নিরাপদ লগইনের জন্য {{type}} ব্যবহার করতে চান?",
+    "notNow": "এখন না",
+    "enable": "সক্ষম করুন"
+  },
+  "scan": {
+    "scanDocument": "ডকুমেন্ট স্ক্যান",
+    "takePhoto": "ফটো তুলুন",
+    "chooseFromGallery": "গ্যালারি থেকে বেছে নিন",
+    "analyzing": "বিশ্লেষণ করা হচ্ছে...",
+    "processingDocument": "AI দিয়ে আপনার ডকুমেন্ট প্রক্রিয়া করা হচ্ছে...",
+    "scanSuccess": "ডকুমেন্ট সফলভাবে স্ক্যান হয়েছে!",
+    "scanError": "ডকুমেন্ট স্ক্যান করতে ব্যর্থ",
+    "tryAgain": "দয়া করে একটি পরিষ্কার ছবি দিয়ে আবার চেষ্টা করুন"
+  },
+  "history": {
+    "title": "ইতিহাস",
+    "allRecords": "সব রেকর্ড",
+    "searchPlaceholder": "রেকর্ড খুঁজুন...",
+    "filterByType": "ধরন অনুযায়ী ফিল্টার",
+    "noRecords": "কোন রেকর্ড পাওয়া যায়নি",
+    "startScanning": "আপনার চিকিৎসা সংক্রান্ত ডকুমেন্ট স্ক্যান করা শুরু করুন"
+  },
+  "detail": {
+    "summary": "সারাংশ",
+    "diagnosis": "রোগ নির্ণয়",
+    "medications": "ওষুধ",
+    "nextSteps": "পরবর্তী পদক্ষেপ",
+    "doctorInfo": "ডাক্তারের তথ্য",
+    "facilityInfo": "হাসপাতালের তথ্য",
+    "patientInfo": "রোগীর তথ্য",
+    "deleteRecord": "রেকর্ড মুছুন",
+    "deleteConfirm": "আপনি কি নিশ্চিত যে আপনি এই রেকর্ডটি মুছে ফেলতে চান?",
+    "dosage": "ডোজ",
+    "frequency": "কতবার",
+    "duration": "সময়কাল",
+    "purpose": "উদ্দেশ্য",
+    "sideEffects": "পার্শ্বপ্রতিক্রিয়া"
+  },
+  "meds": {
+    "title": "ওষুধ",
+    "activeMeds": "সক্রিয় ওষুধ",
+    "allMeds": "সব ওষুধ",
+    "noMeds": "কোন ওষুধ পাওয়া যায়নি",
+    "trackMeds": "আপনার নির্ধারিত ওষুধগুলি এখানে দেখা যাবে"
+  },
+  "schedule": {
+    "title": "সময়সূচী",
+    "upcoming": "আসন্ন",
+    "today": "আজ",
+    "thisWeek": "এই সপ্তাহ",
+    "noSchedule": "কোন নির্ধারিত ইভেন্ট নেই",
+    "addToCalendar": "ক্যালেন্ডারে যোগ করুন"
+  },
+  "testAnalyzer": {
+    "title": "পরীক্ষা বিশ্লেষক",
+    "scanLabReport": "ল্যাব রিপোর্ট স্ক্যান করুন",
+    "healthSummary": "স্বাস্থ্য সারাংশ",
+    "keyFindings": "মূল ফলাফল",
+    "recommendations": "সুপারিশ",
+    "testCategories": "পরীক্ষার বিভাগ",
+    "overallCondition": "সামগ্রিক অবস্থা",
+    "normal": "স্বাভাবিক",
+    "low": "কম",
+    "high": "বেশি",
+    "critical": "গুরুতর"
+  },
+  "labDetail": {
+    "testResults": "পরীক্ষার ফলাফল",
+    "value": "মান",
+    "reference": "রেফারেন্স",
+    "status": "অবস্থা",
+    "interpretation": "ব্যাখ্যা"
+  },
+  "settings": {
+    "title": "সেটিংস",
+    "language": "ভাষা",
+    "notifications": "বিজ্ঞপ্তি",
+    "biometric": "বায়োমেট্রিক লগইন",
+    "about": "সম্পর্কে",
+    "logout": "লগআউট",
+    "logoutConfirm": "আপনি কি নিশ্চিত যে আপনি লগআউট করতে চান?"
+  },
+  "errors": {
+    "networkError": "নেটওয়ার্ক ত্রুটি। আপনার সংযোগ পরীক্ষা করুন।",
+    "apiError": "কিছু ভুল হয়েছে। দয়া করে আবার চেষ্টা করুন।",
+    "invalidImage": "অবৈধ ছবি। দয়া করে আবার চেষ্টা করুন।",
+    "notMedicalDocument": "এটি একটি চিকিৎসা সংক্রান্ত ডকুমেন্ট বলে মনে হচ্ছে না।",
+    "storageFull": "স্টোরেজ পূর্ণ। দয়া করে কিছু রেকর্ড মুছুন।"
+  }
+}
