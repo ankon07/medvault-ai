@@ -27,6 +27,7 @@ export type RootStackParamList = {
   TestAnalyzer: undefined;
   LabTestDetail: { labTestId: string };
   FamilyMembers: undefined;
+  Scan: undefined;
 };
 
 /**

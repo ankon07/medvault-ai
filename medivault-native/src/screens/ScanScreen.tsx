@@ -24,9 +24,9 @@ import { analyzeMedicalDocument, ImageAnalysisError, ERROR_CODES } from '../serv
 import { promptAndAddToCalendar } from '../services/calendarService';
 import { generateId } from '../utils/dateUtils';
 import { MedicalRecord } from '../types';
-import { MainTabScreenProps } from '../navigation/types';
+import { RootStackScreenProps } from '../navigation/types';
 
-type Props = MainTabScreenProps<'Scan'>;
+type Props = RootStackScreenProps<'Scan'>;
 
 const ScanScreen: React.FC<Props> = () => {
   const insets = useSafeAreaInsets();

@@ -13,6 +13,7 @@ import MedDetailScreen from '../screens/MedDetailScreen';
 import TestAnalyzerScreen from '../screens/TestAnalyzerScreen';
 import LabTestDetailScreen from '../screens/LabTestDetailScreen';
 import FamilyMembersScreen from '../screens/FamilyMembersScreen';
+import ScanScreen from '../screens/ScanScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -61,6 +62,14 @@ export const RootNavigator: React.FC = () => {
         component={FamilyMembersScreen}
         options={{
           animation: 'slide_from_right',
+        }}
+      />
+      <Stack.Screen 
+        name="Scan" 
+        component={ScanScreen}
+        options={{
+          animation: 'slide_from_bottom',
+          presentation: 'modal',
         }}
       />
     </Stack.Navigator>
