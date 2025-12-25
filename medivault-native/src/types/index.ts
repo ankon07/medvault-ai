@@ -421,7 +421,9 @@ export interface Notification {
     | "family_request"
     | "request_accepted"
     | "request_declined"
-    | "family_member_left";
+    | "family_member_left"
+    | "medicine_taken"
+    | "medicine_missed";
   /** Notification title */
   title: string;
   /** Notification message */

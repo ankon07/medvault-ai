@@ -30,6 +30,11 @@ import AuthNavigator from "./src/navigation/AuthNavigator";
 import { useRecordStore } from "./src/store/useRecordStore";
 import { useAuthStore } from "./src/store/useAuthStore";
 import { colors, spacing, fontSize, fontWeight } from "./src/theme";
+import {
+  registerBackgroundTask,
+  setCurrentUserId,
+  clearCurrentUserId,
+} from "./src/services/medicationReminderService";
 
 // Ignore specific warnings (optional)
 LogBox.ignoreLogs([
@@ -67,14 +72,31 @@ const App: React.FC = () => {
     };
   }, [initialize]);
 
+  // Register background task on app mount
+  useEffect(() => {
+    registerBackgroundTask().catch((error) => {
+      console.error("Failed to register background task:", error);
+    });
+  }, []);
+
   // Initialize record store when user is authenticated
   useEffect(() => {
     if (user?.uid) {
       // User is authenticated, initialize record store with real-time Firebase subscription
       initializeWithUser(user.uid);
+
+      // Set user ID for background task
+      setCurrentUserId(user.uid).catch((error) => {
+        console.error("Failed to set current user ID:", error);
+      });
     } else if (isInitialized && !user) {
       // User logged out, cleanup record store
       cleanup();
+
+      // Clear user ID for background task
+      clearCurrentUserId().catch((error) => {
+        console.error("Failed to clear current user ID:", error);
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     // Note: initializeWithUser and cleanup are stable Zustand store functions

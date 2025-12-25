@@ -445,6 +445,17 @@ export const useRecordStore = create<RecordState>((set, get) => ({
   decrementPillCount: async (recordId, medicationName) => {
     const { userId, records } = get();
 
+    console.log("🔍 DEBUG decrementPillCount:");
+    console.log("  - recordId:", recordId);
+    console.log("  - medicationName:", medicationName);
+    console.log("  - userId:", userId);
+    console.log("  - currentViewingUserId:", currentViewingUserId);
+    console.log("  - records.length:", records.length);
+    console.log(
+      "  - records:",
+      records.map((r) => r.id)
+    );
+
     if (!userId) {
       set({ error: "User not authenticated" });
       throw new Error("User not authenticated");
@@ -457,9 +468,21 @@ export const useRecordStore = create<RecordState>((set, get) => ({
       const memberId = activeMember?.id;
 
       // Find the record and medication to calculate new count
-      const record = records.find((r) => r.id === recordId);
+      // First try to find in current records
+      let record = records.find((r) => r.id === recordId);
+
+      // If not found, fetch from Firebase (viewing another profile)
       if (!record) {
-        throw new Error("Record not found");
+        console.log("Record not in current view, fetching from Firebase...");
+
+        // Use the viewing user ID (from global tracker)
+        const viewingUserId = currentViewingUserId || userId;
+        const allRecords = await getUserRecords(viewingUserId);
+        record = allRecords.find((r) => r.id === recordId);
+
+        if (!record) {
+          throw new Error("Record not found in Firebase");
+        }
       }
 
       const medication = record.analysis.medications.find(
@@ -474,27 +497,35 @@ export const useRecordStore = create<RecordState>((set, get) => ({
       const newRemaining = Math.max(0, currentRemaining - 1);
 
       // Update in Firebase with memberId support
+      // Use the viewing user ID to update the correct profile
+      const targetUserId = currentViewingUserId || userId;
       await updateMedicationPillCount(
-        userId,
+        targetUserId,
         recordId,
         medicationName,
         newRemaining,
         memberId
       );
 
-      // Also update local storage
-      const updatedRecord = {
-        ...record,
-        analysis: {
-          ...record.analysis,
-          medications: record.analysis.medications.map((med) =>
-            med.name === medicationName
-              ? { ...med, totalPills, pillsRemaining: newRemaining }
-              : med
-          ),
-        },
-      };
-      await storageService.updateRecord(recordId, updatedRecord);
+      // Also update local storage (non-blocking)
+      try {
+        const updatedRecord = {
+          ...record,
+          analysis: {
+            ...record.analysis,
+            medications: record.analysis.medications.map((med) =>
+              med.name === medicationName
+                ? { ...med, totalPills, pillsRemaining: newRemaining }
+                : med
+            ),
+          },
+        };
+        await storageService.updateRecord(recordId, updatedRecord);
+      } catch (storageError: any) {
+        // Local storage update failed, but that's OK
+        // Firebase is the source of truth anyway
+        console.log("Local storage update skipped:", storageError.message);
+      }
 
       set({ error: null });
     } catch (error) {
@@ -597,6 +628,48 @@ export const useRecordStore = create<RecordState>((set, get) => ({
 
       // Also decrement pill count
       await get().decrementPillCount(medication.sourceId, medication.name);
+
+      // Send notifications to family members
+      try {
+        const {
+          getUserFamily,
+          getFamilyMemberUserIds,
+        } = require("../services/familyRequestService");
+        const {
+          createMedicineTakenNotification,
+        } = require("../services/notificationService");
+        const { ref, get: firebaseGet } = require("firebase/database");
+        const { database } = require("../config/firebase");
+
+        // Get user's display name
+        const userRef = ref(database, `users/${userId}`);
+        const userSnapshot = await firebaseGet(userRef);
+        const userData = userSnapshot.exists() ? userSnapshot.val() : {};
+        const takerName = userData.displayName || "A family member";
+
+        // Get user's family
+        const family = await getUserFamily(userId);
+        if (family) {
+          // Get all family member IDs
+          const familyMemberIds = await getFamilyMemberUserIds(family.id);
+
+          // Send notification to all family members EXCEPT the person who took it
+          for (const memberId of familyMemberIds) {
+            if (memberId !== userId) {
+              await createMedicineTakenNotification(
+                memberId,
+                takerName,
+                medication.name,
+                medication.dosage || "Unknown dosage",
+                timeSlot
+              );
+            }
+          }
+        }
+      } catch (notifError) {
+        console.error("Error sending family notifications:", notifError);
+        // Don't throw - notification failure shouldn't prevent marking as taken
+      }
 
       set({ error: null });
     } catch (error) {

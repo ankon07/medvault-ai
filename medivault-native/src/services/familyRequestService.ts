@@ -557,6 +557,26 @@ export const getUserFamily = async (userId: string): Promise<Family | null> => {
 };
 
 /**
+ * Get all user IDs in a family (for sending notifications)
+ */
+export const getFamilyMemberUserIds = async (
+  familyId: string
+): Promise<string[]> => {
+  try {
+    const family = await getFamilyById(familyId);
+    if (!family) {
+      return [];
+    }
+
+    // Return all user IDs from family members
+    return Object.keys(family.members);
+  } catch (error) {
+    console.error("Error getting family member IDs:", error);
+    return [];
+  }
+};
+
+/**
  * Subscribe to family requests for a user
  */
 export const subscribeToFamilyRequests = (

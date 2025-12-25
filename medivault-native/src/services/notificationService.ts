@@ -303,3 +303,63 @@ export const createMemberLeftNotification = async (
     read: false,
   });
 };
+
+/**
+ * Create a medicine taken notification
+ */
+export const createMedicineTakenNotification = async (
+  userId: string,
+  takerName: string,
+  medicineName: string,
+  dosage: string,
+  timeSlot: string
+): Promise<string> => {
+  const timeLabel =
+    timeSlot === "morning"
+      ? "Morning"
+      : timeSlot === "afternoon"
+      ? "Afternoon"
+      : "Evening";
+  return createNotification(userId, {
+    type: "medicine_taken",
+    title: "Medicine Taken",
+    message: `${takerName} took ${medicineName} ${dosage} (${timeLabel} dose)`,
+    data: { medicineName, dosage, timeSlot, takerName },
+    read: false,
+  });
+};
+
+/**
+ * Create a medicine missed notification (summary)
+ */
+export const createMedicineMissedNotification = async (
+  userId: string,
+  missedByName: string,
+  missedMedications: Array<{ name: string; timeSlot: string }>
+): Promise<string> => {
+  const count = missedMedications.length;
+  const medList = missedMedications
+    .map((med) => {
+      const timeLabel =
+        med.timeSlot === "morning"
+          ? "Morning"
+          : med.timeSlot === "afternoon"
+          ? "Afternoon"
+          : "Evening";
+      return `${med.name} (${timeLabel})`;
+    })
+    .join(", ");
+
+  const message =
+    count === 1
+      ? `${missedByName} has missed ${medList}`
+      : `${missedByName} has missed ${count} medications today: ${medList}`;
+
+  return createNotification(userId, {
+    type: "medicine_missed",
+    title: "Missed Medications",
+    message: message,
+    data: { missedByName, missedMedications, count },
+    read: false,
+  });
+};
