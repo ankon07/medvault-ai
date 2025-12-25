@@ -3,8 +3,14 @@
  * Zustand store for managing medical records state with Firebase integration
  */
 
-import { create } from 'zustand';
-import { MedicalRecord, MedicationWithSource, Medication, TakenMedication, LabTestRecord } from '../types';
+import { create } from "zustand";
+import {
+  MedicalRecord,
+  MedicationWithSource,
+  Medication,
+  TakenMedication,
+  LabTestRecord,
+} from "../types";
 import {
   subscribeToRecords,
   createRecord,
@@ -21,8 +27,12 @@ import {
   createLabTestRecord,
   deleteLabTestRecord as firebaseDeleteLabTestRecord,
   getUserLabTestRecords,
-} from '../services/firebaseDatabaseService';
-import { storageService } from '../services/storageService';
+} from "../services/firebaseDatabaseService";
+import { storageService } from "../services/storageService";
+
+// Initialization guards to prevent infinite loops
+let isInitializing = false;
+let currentViewingUserId: string | null = null;
 
 /**
  * Record store state interface
@@ -33,35 +43,39 @@ interface RecordState {
   selectedRecord: MedicalRecord | null;
   takenMedications: TakenMedication[];
   labTestRecords: LabTestRecord[];
-  
+
   // User context
   userId: string | null;
-  
+
   // Loading states
   isLoading: boolean;
   isAnalyzing: boolean;
   isSyncing: boolean;
   error: string | null;
-  
+
   // Subscription management
   unsubscribe: (() => void) | null;
   unsubscribeTakenMeds: (() => void) | null;
   unsubscribeLabTests: (() => void) | null;
-  
+
   // Actions
   initializeWithUser: (userId: string) => Promise<void>;
+  switchToProfile: (targetUserId: string) => Promise<void>;
   cleanup: () => void;
   loadRecords: () => Promise<void>;
   addRecord: (record: MedicalRecord) => Promise<void>;
   deleteRecord: (recordId: string) => Promise<void>;
-  updateRecord: (recordId: string, updates: Partial<MedicalRecord>) => Promise<void>;
+  updateRecord: (
+    recordId: string,
+    updates: Partial<MedicalRecord>
+  ) => Promise<void>;
   setSelectedRecord: (record: MedicalRecord | null) => void;
   setAnalyzing: (isAnalyzing: boolean) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
   updateMedicationProof: (
-    recordId: string, 
-    medicationName: string, 
+    recordId: string,
+    medicationName: string,
     proofImage: string
   ) => Promise<void>;
   decrementPillCount: (
@@ -69,11 +83,11 @@ interface RecordState {
     medicationName: string
   ) => Promise<void>;
   syncLocalData: () => Promise<void>;
-  
+
   // Taken medications actions
   markMedicationTaken: (
     medication: MedicationWithSource,
-    timeSlot: 'morning' | 'afternoon' | 'evening',
+    timeSlot: "morning" | "afternoon" | "evening",
     date: string
   ) => Promise<void>;
   isMedicationTaken: (
@@ -82,12 +96,12 @@ interface RecordState {
     date: string
   ) => boolean;
   getTakenMedicationsForDate: (date: string) => TakenMedication[];
-  
+
   // Lab test records actions
   addLabTestRecord: (record: LabTestRecord) => Promise<void>;
   deleteLabTestRecord: (recordId: string) => Promise<void>;
   getLabTestRecordById: (id: string) => LabTestRecord | undefined;
-  
+
   // Computed getters
   getLabReports: () => MedicalRecord[];
   getAllMedications: () => MedicationWithSource[];
@@ -122,12 +136,29 @@ export const useRecordStore = create<RecordState>((set, get) => ({
    * Initialize store with authenticated user and subscribe to real-time updates
    */
   initializeWithUser: async (userId: string) => {
-    const { 
-      unsubscribe: existingUnsubscribe, 
+    // Use the userId parameter directly - no cross-store dependencies
+    const viewingUserId = userId;
+
+    // Prevent re-initialization if already initializing or if viewing profile hasn't changed
+    if (isInitializing) {
+      console.log("Already initializing, skipping...");
+      return;
+    }
+
+    if (currentViewingUserId === viewingUserId) {
+      console.log("Viewing profile unchanged, skipping reinitialize");
+      return;
+    }
+
+    isInitializing = true;
+    currentViewingUserId = viewingUserId;
+
+    const {
+      unsubscribe: existingUnsubscribe,
       unsubscribeTakenMeds: existingTakenMedsUnsubscribe,
-      unsubscribeLabTests: existingLabTestsUnsubscribe 
+      unsubscribeLabTests: existingLabTestsUnsubscribe,
     } = get();
-    
+
     // Cleanup existing subscriptions if any
     if (existingUnsubscribe) {
       existingUnsubscribe();
@@ -138,25 +169,29 @@ export const useRecordStore = create<RecordState>((set, get) => ({
     if (existingLabTestsUnsubscribe) {
       existingLabTestsUnsubscribe();
     }
-    
+
     set({ isLoading: true, userId, error: null });
-    
+
     try {
       // First, sync any local data to Firebase
       await get().syncLocalData();
-      
+
       // Subscribe to real-time updates from Firebase for records
+      // Use viewingUserId to load the correct user's data
       const unsubscribe = subscribeToRecords(
-        userId,
+        viewingUserId,
         (records) => {
           set({ records, isLoading: false });
         },
         (error) => {
-          console.error('Firebase subscription error:', error);
-          set({ error: 'Failed to sync with cloud. Working offline.', isLoading: false });
+          console.error("Firebase subscription error:", error);
+          set({
+            error: "Failed to sync with cloud. Working offline.",
+            isLoading: false,
+          });
         }
       );
-      
+
       // Subscribe to real-time updates from Firebase for taken medications
       const unsubscribeTakenMeds = subscribeToTakenMedications(
         userId,
@@ -164,10 +199,13 @@ export const useRecordStore = create<RecordState>((set, get) => ({
           set({ takenMedications });
         },
         (error) => {
-          console.error('Firebase taken medications subscription error:', error);
+          console.error(
+            "Firebase taken medications subscription error:",
+            error
+          );
         }
       );
-      
+
       // Subscribe to real-time updates from Firebase for lab test records
       const unsubscribeLabTests = subscribeToLabTestRecords(
         userId,
@@ -175,18 +213,33 @@ export const useRecordStore = create<RecordState>((set, get) => ({
           set({ labTestRecords });
         },
         (error) => {
-          console.error('Firebase lab test records subscription error:', error);
+          console.error("Firebase lab test records subscription error:", error);
         }
       );
-      
+
       set({ unsubscribe, unsubscribeTakenMeds, unsubscribeLabTests });
     } catch (error) {
-      console.error('Error initializing records:', error);
-      set({ 
-        isLoading: false, 
-        error: 'Failed to initialize records' 
+      console.error("Error initializing records:", error);
+      set({
+        isLoading: false,
+        error: "Failed to initialize records",
       });
+    } finally {
+      isInitializing = false;
     }
+  },
+
+  /**
+   * Switch to viewing a different user's profile
+   * Explicitly reinitializes with a different user ID
+   */
+  switchToProfile: async (targetUserId: string) => {
+    // Reset guards to allow reinitialization
+    currentViewingUserId = null;
+    isInitializing = false;
+
+    // Reinitialize with the target user's data
+    await get().initializeWithUser(targetUserId);
   },
 
   /**
@@ -221,22 +274,22 @@ export const useRecordStore = create<RecordState>((set, get) => ({
    */
   loadRecords: async () => {
     const { userId } = get();
-    
+
     if (!userId) {
-      set({ error: 'User not authenticated' });
+      set({ error: "User not authenticated" });
       return;
     }
-    
+
     set({ isLoading: true, error: null });
-    
+
     try {
       const records = await getUserRecords(userId);
       set({ records, isLoading: false });
     } catch (error) {
-      console.error('Error loading records:', error);
-      set({ 
-        isLoading: false, 
-        error: 'Failed to load records' 
+      console.error("Error loading records:", error);
+      set({
+        isLoading: false,
+        error: "Failed to load records",
       });
     }
   },
@@ -246,23 +299,23 @@ export const useRecordStore = create<RecordState>((set, get) => ({
    */
   addRecord: async (record) => {
     const { userId } = get();
-    
+
     if (!userId) {
-      set({ error: 'User not authenticated' });
-      throw new Error('User not authenticated');
+      set({ error: "User not authenticated" });
+      throw new Error("User not authenticated");
     }
-    
+
     try {
       // Save to Firebase - real-time subscription will update the store
       await createRecord(userId, record);
-      
+
       // Also save to local storage as backup
       await storageService.saveRecord(record);
-      
+
       set({ error: null });
     } catch (error) {
-      console.error('Error adding record:', error);
-      set({ error: 'Failed to save record' });
+      console.error("Error adding record:", error);
+      set({ error: "Failed to save record" });
       throw error;
     }
   },
@@ -272,29 +325,29 @@ export const useRecordStore = create<RecordState>((set, get) => ({
    */
   deleteRecord: async (recordId) => {
     const { userId } = get();
-    
+
     if (!userId) {
-      set({ error: 'User not authenticated' });
-      throw new Error('User not authenticated');
+      set({ error: "User not authenticated" });
+      throw new Error("User not authenticated");
     }
-    
+
     try {
       // Delete from Firebase - real-time subscription will update the store
       await firebaseDeleteRecord(userId, recordId);
-      
+
       // Also delete from local storage
       await storageService.deleteRecord(recordId);
-      
+
       // Clear selected record if it was deleted
       const { selectedRecord } = get();
       if (selectedRecord?.id === recordId) {
         set({ selectedRecord: null });
       }
-      
+
       set({ error: null });
     } catch (error) {
-      console.error('Error deleting record:', error);
-      set({ error: 'Failed to delete record' });
+      console.error("Error deleting record:", error);
+      set({ error: "Failed to delete record" });
       throw error;
     }
   },
@@ -304,23 +357,23 @@ export const useRecordStore = create<RecordState>((set, get) => ({
    */
   updateRecord: async (recordId, updates) => {
     const { userId } = get();
-    
+
     if (!userId) {
-      set({ error: 'User not authenticated' });
-      throw new Error('User not authenticated');
+      set({ error: "User not authenticated" });
+      throw new Error("User not authenticated");
     }
-    
+
     try {
       // Update in Firebase - real-time subscription will update the store
       await firebaseUpdateRecord(userId, recordId, updates);
-      
+
       // Also update local storage
       await storageService.updateRecord(recordId, updates);
-      
+
       set({ error: null });
     } catch (error) {
-      console.error('Error updating record:', error);
-      set({ error: 'Failed to update record' });
+      console.error("Error updating record:", error);
+      set({ error: "Failed to update record" });
       throw error;
     }
   },
@@ -350,28 +403,38 @@ export const useRecordStore = create<RecordState>((set, get) => ({
    */
   updateMedicationProof: async (recordId, medicationName, proofImage) => {
     const { userId } = get();
-    
+
     if (!userId) {
-      set({ error: 'User not authenticated' });
-      throw new Error('User not authenticated');
+      set({ error: "User not authenticated" });
+      throw new Error("User not authenticated");
     }
-    
+
     try {
       // Get active family member ID from family store
-      const { useFamilyStore } = require('./useFamilyStore');
+      const { useFamilyStore } = require("./useFamilyStore");
       const activeMember = useFamilyStore.getState().activeMember;
       const memberId = activeMember?.id;
-      
+
       // Update in Firebase - real-time subscription will update the store
-      await firebaseUpdateMedicationProof(userId, recordId, medicationName, proofImage, memberId);
-      
+      await firebaseUpdateMedicationProof(
+        userId,
+        recordId,
+        medicationName,
+        proofImage,
+        memberId
+      );
+
       // Also update local storage
-      await storageService.updateMedicationProof(recordId, medicationName, proofImage);
-      
+      await storageService.updateMedicationProof(
+        recordId,
+        medicationName,
+        proofImage
+      );
+
       set({ error: null });
     } catch (error) {
-      console.error('Error updating medication proof:', error);
-      set({ error: 'Failed to save proof image' });
+      console.error("Error updating medication proof:", error);
+      set({ error: "Failed to save proof image" });
       throw error;
     }
   },
@@ -381,36 +444,44 @@ export const useRecordStore = create<RecordState>((set, get) => ({
    */
   decrementPillCount: async (recordId, medicationName) => {
     const { userId, records } = get();
-    
+
     if (!userId) {
-      set({ error: 'User not authenticated' });
-      throw new Error('User not authenticated');
+      set({ error: "User not authenticated" });
+      throw new Error("User not authenticated");
     }
-    
+
     try {
       // Get active family member ID from family store
-      const { useFamilyStore } = require('./useFamilyStore');
+      const { useFamilyStore } = require("./useFamilyStore");
       const activeMember = useFamilyStore.getState().activeMember;
       const memberId = activeMember?.id;
-      
+
       // Find the record and medication to calculate new count
-      const record = records.find(r => r.id === recordId);
+      const record = records.find((r) => r.id === recordId);
       if (!record) {
-        throw new Error('Record not found');
+        throw new Error("Record not found");
       }
-      
-      const medication = record.analysis.medications.find(m => m.name === medicationName);
+
+      const medication = record.analysis.medications.find(
+        (m) => m.name === medicationName
+      );
       if (!medication) {
-        throw new Error('Medication not found');
+        throw new Error("Medication not found");
       }
-      
+
       const totalPills = medication.totalPills || 30;
       const currentRemaining = medication.pillsRemaining ?? totalPills;
       const newRemaining = Math.max(0, currentRemaining - 1);
-      
+
       // Update in Firebase with memberId support
-      await updateMedicationPillCount(userId, recordId, medicationName, newRemaining, memberId);
-      
+      await updateMedicationPillCount(
+        userId,
+        recordId,
+        medicationName,
+        newRemaining,
+        memberId
+      );
+
       // Also update local storage
       const updatedRecord = {
         ...record,
@@ -424,11 +495,11 @@ export const useRecordStore = create<RecordState>((set, get) => ({
         },
       };
       await storageService.updateRecord(recordId, updatedRecord);
-      
+
       set({ error: null });
     } catch (error) {
-      console.error('Error updating pill count:', error);
-      set({ error: 'Failed to update pill count' });
+      console.error("Error updating pill count:", error);
+      set({ error: "Failed to update pill count" });
       throw error;
     }
   },
@@ -438,32 +509,34 @@ export const useRecordStore = create<RecordState>((set, get) => ({
    */
   syncLocalData: async () => {
     const { userId } = get();
-    
+
     if (!userId) {
       return;
     }
-    
+
     set({ isSyncing: true });
-    
+
     try {
       // Get local records
       const localRecords = await storageService.getRecords();
-      
+
       if (localRecords.length > 0) {
         // Sync to Firebase
         await syncLocalRecordsToFirebase(userId, localRecords);
       }
-      
+
       set({ isSyncing: false });
     } catch (error) {
-      console.error('Error syncing local data:', error);
+      console.error("Error syncing local data:", error);
       set({ isSyncing: false });
     }
   },
 
   // Get all lab reports
   getLabReports: () => {
-    return get().records.filter((r) => r.analysis.documentType === 'Lab Report');
+    return get().records.filter(
+      (r) => r.analysis.documentType === "Lab Report"
+    );
   },
 
   // Get all medications from all records
@@ -487,7 +560,9 @@ export const useRecordStore = create<RecordState>((set, get) => ({
     const { records, labTestRecords } = get();
     return {
       totalRecords: records.length,
-      labReports: records.filter((r) => r.analysis.documentType === 'Lab Report').length,
+      labReports: records.filter(
+        (r) => r.analysis.documentType === "Lab Report"
+      ).length,
       labTestRecords: labTestRecords.length,
       totalMedications: records.reduce(
         (acc, r) => acc + (r.analysis.medications || []).length,
@@ -503,12 +578,12 @@ export const useRecordStore = create<RecordState>((set, get) => ({
    */
   markMedicationTaken: async (medication, timeSlot, date) => {
     const { userId } = get();
-    
+
     if (!userId) {
-      set({ error: 'User not authenticated' });
-      throw new Error('User not authenticated');
+      set({ error: "User not authenticated" });
+      throw new Error("User not authenticated");
     }
-    
+
     try {
       // Save to Firebase - subscription will update the store
       await saveTakenMedication(userId, {
@@ -519,14 +594,14 @@ export const useRecordStore = create<RecordState>((set, get) => ({
         sourceId: medication.sourceId,
         dosage: medication.dosage,
       });
-      
+
       // Also decrement pill count
       await get().decrementPillCount(medication.sourceId, medication.name);
-      
+
       set({ error: null });
     } catch (error) {
-      console.error('Error marking medication as taken:', error);
-      set({ error: 'Failed to save medication intake' });
+      console.error("Error marking medication as taken:", error);
+      set({ error: "Failed to save medication intake" });
       throw error;
     }
   },
@@ -559,19 +634,19 @@ export const useRecordStore = create<RecordState>((set, get) => ({
    */
   addLabTestRecord: async (record) => {
     const { userId } = get();
-    
+
     if (!userId) {
-      set({ error: 'User not authenticated' });
-      throw new Error('User not authenticated');
+      set({ error: "User not authenticated" });
+      throw new Error("User not authenticated");
     }
-    
+
     try {
       // Save to Firebase - real-time subscription will update the store
       await createLabTestRecord(userId, record);
       set({ error: null });
     } catch (error) {
-      console.error('Error adding lab test record:', error);
-      set({ error: 'Failed to save lab test record' });
+      console.error("Error adding lab test record:", error);
+      set({ error: "Failed to save lab test record" });
       throw error;
     }
   },
@@ -581,19 +656,19 @@ export const useRecordStore = create<RecordState>((set, get) => ({
    */
   deleteLabTestRecord: async (recordId) => {
     const { userId } = get();
-    
+
     if (!userId) {
-      set({ error: 'User not authenticated' });
-      throw new Error('User not authenticated');
+      set({ error: "User not authenticated" });
+      throw new Error("User not authenticated");
     }
-    
+
     try {
       // Delete from Firebase - real-time subscription will update the store
       await firebaseDeleteLabTestRecord(userId, recordId);
       set({ error: null });
     } catch (error) {
-      console.error('Error deleting lab test record:', error);
-      set({ error: 'Failed to delete lab test record' });
+      console.error("Error deleting lab test record:", error);
+      set({ error: "Failed to delete lab test record" });
       throw error;
     }
   },

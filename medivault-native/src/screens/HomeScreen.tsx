@@ -3,7 +3,7 @@
  * Dashboard with stats, recent records, and quick actions
  */
 
-import React from 'react';
+import React from "react";
 import {
   View,
   Text,
@@ -11,10 +11,10 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import { useTranslation } from 'react-i18next';
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
+import { useTranslation } from "react-i18next";
 import {
   Camera,
   Activity,
@@ -25,17 +25,34 @@ import {
   Calendar,
   FileBadge,
   Users,
-} from 'lucide-react-native';
+} from "lucide-react-native";
 
-import { colors, spacing, fontSize, fontWeight, borderRadius, shadows } from '../theme';
-import { Card, EmptyState, LanguageToggle } from '../components/common';
-import { useRecordStore } from '../store/useRecordStore';
-import { useAuthStore } from '../store/useAuthStore';
-import { getGreetingKey } from '../utils/dateUtils';
-import { DOCUMENT_TYPE_CONFIG } from '../constants';
-import { MainTabScreenProps } from '../navigation/types';
+import {
+  colors,
+  spacing,
+  fontSize,
+  fontWeight,
+  borderRadius,
+  shadows,
+} from "../theme";
+import {
+  Card,
+  EmptyState,
+  LanguageToggle,
+  NotificationBell,
+  ProfileBanner,
+} from "../components/common";
+import { useRecordStore } from "../store/useRecordStore";
+import { useAuthStore } from "../store/useAuthStore";
+import {
+  useViewingProfile,
+  useProfileViewActions,
+} from "../store/useProfileViewStore";
+import { getGreetingKey } from "../utils/dateUtils";
+import { DOCUMENT_TYPE_CONFIG } from "../constants";
+import { MainTabScreenProps } from "../navigation/types";
 
-type Props = MainTabScreenProps<'Home'>;
+type Props = MainTabScreenProps<"Home">;
 
 /**
  * Home screen component
@@ -44,32 +61,41 @@ const HomeScreen: React.FC<Props> = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { t } = useTranslation();
-  
-  const { 
-    records, 
-    isLoading, 
-    loadRecords,
-    getStats 
-  } = useRecordStore();
-  
+
+  const { records, isLoading, loadRecords, getStats } = useRecordStore();
+
   const { user, userProfile } = useAuthStore();
+
+  // Profile viewing state
+  const viewingProfile = useViewingProfile();
+  const { clearViewingProfile } = useProfileViewActions();
 
   const stats = getStats();
   const recentRecords = records.slice(0, 5);
-  
+
   // Get display name for greeting
-  const displayName = userProfile?.displayName || user?.displayName || 'there';
-  
+  const displayName = userProfile?.displayName || user?.displayName || "there";
+
   // Get localized greeting
   const greetingKey = getGreetingKey();
   const greeting = t(`greeting.${greetingKey}`);
 
+  // Handle switching back to own profile
+  const handleSwitchBack = async () => {
+    await clearViewingProfile();
+    // Explicitly switch back to own profile
+    if (user?.uid) {
+      const { switchToProfile } = useRecordStore.getState();
+      await switchToProfile(user.uid);
+    }
+  };
+
   const handleScan = () => {
-    navigation.navigate('Scan' as never);
+    navigation.navigate("Scan" as never);
   };
 
   const handleViewRecord = (recordId: string) => {
-    navigation.navigate('Detail', { recordId } as never);
+    navigation.navigate("Detail", { recordId } as never);
   };
 
   return (
@@ -77,7 +103,7 @@ const HomeScreen: React.FC<Props> = () => {
       style={styles.container}
       contentContainerStyle={[
         styles.content,
-        { paddingTop: insets.top + spacing['4'] },
+        { paddingTop: insets.top + spacing["4"] },
       ]}
       showsVerticalScrollIndicator={false}
       refreshControl={
@@ -88,8 +114,9 @@ const HomeScreen: React.FC<Props> = () => {
         />
       }
     >
-      {/* Language Toggle - Top Right */}
+      {/* Notification Bell & Language Toggle */}
       <View style={styles.languageToggleContainer}>
+        <NotificationBell />
         <LanguageToggle size="medium" />
       </View>
 
@@ -113,77 +140,97 @@ const HomeScreen: React.FC<Props> = () => {
               <FileBadge size={20} color={colors.white} />
             </View>
             <View style={styles.latestText}>
-              <Text style={styles.latestLabel}>{t('home.latestUpdate')}</Text>
+              <Text style={styles.latestLabel}>{t("home.latestUpdate")}</Text>
               <Text style={styles.latestTitle} numberOfLines={1}>
-                {records[0]?.analysis.title || t('home.noRecordsYet')}
+                {records[0]?.analysis.title || t("home.noRecordsYet")}
               </Text>
             </View>
           </View>
 
           {/* Scan Button */}
-          <TouchableOpacity 
-            style={styles.scanButton} 
+          <TouchableOpacity
+            style={styles.scanButton}
             onPress={handleScan}
             activeOpacity={0.9}
           >
             <Camera size={20} color={colors.primary[700]} />
-            <Text style={styles.scanButtonText}>{t('home.scanNewDocument')}</Text>
+            <Text style={styles.scanButtonText}>
+              {t("home.scanNewDocument")}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
 
+      {/* Profile Banner - Show when viewing another user's profile */}
+      {viewingProfile.isViewing && viewingProfile.userName && (
+        <ProfileBanner
+          memberName={viewingProfile.userName}
+          onSwitchBack={handleSwitchBack}
+        />
+      )}
+
       {/* Quick Access Stats */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('home.quickAccess')}</Text>
+        <Text style={styles.sectionTitle}>{t("home.quickAccess")}</Text>
         <View style={styles.statsGrid}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.statCard}
-            onPress={() => navigation.navigate('History' as never)}
+            onPress={() => navigation.navigate("History" as never)}
             activeOpacity={0.8}
           >
-            <View style={[styles.statIcon, { backgroundColor: colors.orange[50] }]}>
+            <View
+              style={[styles.statIcon, { backgroundColor: colors.orange[50] }]}
+            >
               <FileText size={22} color={colors.orange[500]} />
             </View>
             <Text style={styles.statNumber}>{stats.totalRecords}</Text>
-            <Text style={styles.statLabel}>{t('home.notebook')}</Text>
+            <Text style={styles.statLabel}>{t("home.notebook")}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.statCard}
-            onPress={() => navigation.navigate('TestAnalyzer' as never)}
+            onPress={() => navigation.navigate("TestAnalyzer" as never)}
             activeOpacity={0.8}
           >
-            <View style={[styles.statIcon, { backgroundColor: colors.purple[50] }]}>
+            <View
+              style={[styles.statIcon, { backgroundColor: colors.purple[50] }]}
+            >
               <FlaskConical size={22} color={colors.purple[500]} />
             </View>
             <Text style={styles.statNumber}>{stats.labTestRecords}</Text>
-            <Text style={styles.statLabel}>{t('home.testAnalyzer')}</Text>
+            <Text style={styles.statLabel}>{t("home.testAnalyzer")}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.statCard}
-            onPress={() => navigation.navigate('FamilyMembers' as never)}
+            onPress={() => navigation.navigate("FamilyMembers" as never)}
             activeOpacity={0.8}
           >
-            <View style={[styles.statIcon, { backgroundColor: colors.green[100] }]}>
+            <View
+              style={[styles.statIcon, { backgroundColor: colors.green[100] }]}
+            >
               <Users size={22} color={colors.green[600]} />
             </View>
             <Text style={styles.statNumber}>•••</Text>
-            <Text style={styles.statLabel}>{t('home.familyMembers')}</Text>
+            <Text style={styles.statLabel}>{t("home.familyMembers")}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.statCard, styles.wideCard]}
-            onPress={() => navigation.navigate('Meds' as never)}
+            onPress={() => navigation.navigate("Meds" as never)}
             activeOpacity={0.8}
           >
             <View style={styles.wideCardContent}>
-              <View style={[styles.statIcon, { backgroundColor: colors.blue[50] }]}>
+              <View
+                style={[styles.statIcon, { backgroundColor: colors.blue[50] }]}
+              >
                 <Pill size={22} color={colors.blue[500]} />
               </View>
               <View style={styles.wideCardText}>
                 <Text style={styles.statNumber}>{stats.totalMedications}</Text>
-                <Text style={styles.statLabel}>{t('home.activeMedicines')}</Text>
+                <Text style={styles.statLabel}>
+                  {t("home.activeMedicines")}
+                </Text>
               </View>
               <View style={styles.wideCardArrow}>
                 <ChevronRight size={20} color={colors.white} />
@@ -196,17 +243,19 @@ const HomeScreen: React.FC<Props> = () => {
       {/* Recent History */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{t('home.recentHistory')}</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('History' as never)}>
-            <Text style={styles.seeAllText}>{t('common.seeAll')}</Text>
+          <Text style={styles.sectionTitle}>{t("home.recentHistory")}</Text>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("History" as never)}
+          >
+            <Text style={styles.seeAllText}>{t("common.seeAll")}</Text>
           </TouchableOpacity>
         </View>
 
         {recentRecords.length === 0 ? (
           <EmptyState
             icon={<Camera size={24} color={colors.gray[300]} />}
-            title={t('home.noRecordsFound')}
-            message={t('home.scanFirstDocument')}
+            title={t("home.noRecordsFound")}
+            message={t("home.scanFirstDocument")}
           />
         ) : (
           <View style={styles.recordsList}>
@@ -219,13 +268,18 @@ const HomeScreen: React.FC<Props> = () => {
                   onPress={() => handleViewRecord(record.id)}
                   activeOpacity={0.8}
                 >
-                  <View 
+                  <View
                     style={[
-                      styles.recordIcon, 
-                      { backgroundColor: config.bgColor }
+                      styles.recordIcon,
+                      { backgroundColor: config.bgColor },
                     ]}
                   >
-                    <Text style={[styles.recordIconText, { color: config.textColor }]}>
+                    <Text
+                      style={[
+                        styles.recordIconText,
+                        { color: config.textColor },
+                      ]}
+                    >
                       {config.label}
                     </Text>
                   </View>
@@ -235,10 +289,12 @@ const HomeScreen: React.FC<Props> = () => {
                     </Text>
                     <View style={styles.recordMeta}>
                       <Calendar size={12} color={colors.gray[400]} />
-                      <Text style={styles.recordDate}>{record.analysis.date}</Text>
+                      <Text style={styles.recordDate}>
+                        {record.analysis.date}
+                      </Text>
                       <Text style={styles.recordDot}>•</Text>
                       <Text style={styles.recordDoctor} numberOfLines={1}>
-                        {record.analysis.doctorName || 'Unknown Doctor'}
+                        {record.analysis.doctorName || "Unknown Doctor"}
                       </Text>
                     </View>
                   </View>
@@ -261,79 +317,81 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.primary,
   },
   content: {
-    padding: spacing['6'],
-    paddingBottom: spacing['24'],
+    padding: spacing["6"],
+    paddingBottom: spacing["24"],
   },
-  
+
   // Language Toggle
   languageToggleContainer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginBottom: spacing['4'],
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: spacing["4"],
+    gap: spacing["3"],
   },
 
   // Hero
   heroCard: {
     backgroundColor: colors.primary[700],
-    borderRadius: borderRadius['4xl'],
-    padding: spacing['8'],
-    marginBottom: spacing['8'],
-    overflow: 'hidden',
+    borderRadius: borderRadius["4xl"],
+    padding: spacing["8"],
+    marginBottom: spacing["8"],
+    overflow: "hidden",
     ...shadows.xl,
     shadowColor: colors.primary[600],
   },
   heroGlow: {
-    position: 'absolute',
+    position: "absolute",
     top: -40,
     right: -40,
     width: 120,
     height: 120,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: "rgba(255,255,255,0.1)",
     borderRadius: 60,
   },
   heroContent: {
-    position: 'relative',
+    position: "relative",
     zIndex: 1,
   },
   heroHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing['6'],
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: spacing["6"],
   },
   heroGreeting: {
     fontSize: fontSize.base,
     color: colors.primary[100],
-    marginBottom: spacing['1'],
+    marginBottom: spacing["1"],
   },
   heroName: {
-    fontSize: fontSize['3xl'],
+    fontSize: fontSize["3xl"],
     fontWeight: fontWeight.bold,
     color: colors.white,
   },
   heroIcon: {
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    padding: spacing['2'],
+    backgroundColor: "rgba(255,255,255,0.2)",
+    padding: spacing["2"],
     borderRadius: borderRadius.xl,
   },
   latestUpdate: {
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: borderRadius['2xl'],
-    padding: spacing['4'],
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing['4'],
-    marginBottom: spacing['6'],
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: borderRadius["2xl"],
+    padding: spacing["4"],
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing["4"],
+    marginBottom: spacing["6"],
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: "rgba(255,255,255,0.1)",
   },
   latestIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   latestText: {
     flex: 1,
@@ -341,7 +399,7 @@ const styles = StyleSheet.create({
   latestLabel: {
     fontSize: fontSize.xs,
     color: colors.primary[100],
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.5,
     fontWeight: fontWeight.semiBold,
   },
@@ -354,11 +412,11 @@ const styles = StyleSheet.create({
   scanButton: {
     backgroundColor: colors.white,
     borderRadius: borderRadius.xl,
-    padding: spacing['4'],
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing['2'],
+    padding: spacing["4"],
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing["2"],
   },
   scanButtonText: {
     fontSize: fontSize.base,
@@ -368,14 +426,14 @@ const styles = StyleSheet.create({
 
   // Sections
   section: {
-    marginBottom: spacing['8'],
+    marginBottom: spacing["8"],
   },
   sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing['4'],
-    paddingHorizontal: spacing['1'],
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: spacing["4"],
+    paddingHorizontal: spacing["1"],
   },
   sectionTitle: {
     fontSize: fontSize.lg,
@@ -390,46 +448,46 @@ const styles = StyleSheet.create({
 
   // Stats Grid
   statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing['4'],
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing["4"],
   },
   statCard: {
     flex: 1,
-    minWidth: '45%',
+    minWidth: "45%",
     backgroundColor: colors.white,
-    borderRadius: borderRadius['3xl'],
-    padding: spacing['5'],
+    borderRadius: borderRadius["3xl"],
+    padding: spacing["5"],
     ...shadows.sm,
     borderWidth: 1,
     borderColor: colors.border.light,
   },
   wideCard: {
-    flexBasis: '100%',
+    flexBasis: "100%",
   },
   wideCardContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   wideCardText: {
     flex: 1,
-    marginLeft: spacing['4'],
+    marginLeft: spacing["4"],
   },
   wideCardArrow: {
     backgroundColor: colors.blue[500],
-    padding: spacing['2'],
+    padding: spacing["2"],
     borderRadius: borderRadius.xl,
   },
   statIcon: {
     width: 48,
     height: 48,
-    borderRadius: borderRadius['2xl'],
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing['3'],
+    borderRadius: borderRadius["2xl"],
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing["3"],
   },
   statNumber: {
-    fontSize: fontSize['2xl'],
+    fontSize: fontSize["2xl"],
     fontWeight: fontWeight.bold,
     color: colors.text.primary,
   },
@@ -437,22 +495,22 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: colors.text.secondary,
     fontWeight: fontWeight.medium,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.5,
-    marginTop: spacing['1'],
+    marginTop: spacing["1"],
   },
 
   // Records List
   recordsList: {
-    gap: spacing['4'],
+    gap: spacing["4"],
   },
   recordCard: {
     backgroundColor: colors.white,
-    borderRadius: borderRadius['2xl'],
-    padding: spacing['4'],
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing['4'],
+    borderRadius: borderRadius["2xl"],
+    padding: spacing["4"],
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing["4"],
     ...shadows.sm,
     borderWidth: 1,
     borderColor: colors.border.light,
@@ -460,9 +518,9 @@ const styles = StyleSheet.create({
   recordIcon: {
     width: 56,
     height: 56,
-    borderRadius: borderRadius['2xl'],
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderRadius: borderRadius["2xl"],
+    alignItems: "center",
+    justifyContent: "center",
   },
   recordIconText: {
     fontSize: fontSize.xl,
@@ -477,10 +535,10 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
   },
   recordMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing['2'],
-    marginTop: spacing['1'],
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing["2"],
+    marginTop: spacing["1"],
   },
   recordDate: {
     fontSize: fontSize.xs,
@@ -502,8 +560,8 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: 16,
     backgroundColor: colors.gray[50],
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
 

@@ -1,34 +1,41 @@
 /**
  * MediVault AI - React Native Application
  * A personal medical assistant that digitizes medical documents using AI
- * 
+ *
  * @author MediVault Team
  * @version 1.0.0
  */
 
-import React, { useEffect } from 'react';
-import { StatusBar, LogBox, View, ActivityIndicator, StyleSheet, Text } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import React, { useEffect } from "react";
+import {
+  StatusBar,
+  LogBox,
+  View,
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+} from "react-native";
+import { NavigationContainer } from "@react-navigation/native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 // Import Firebase config to ensure it's initialized
-import './src/config/firebase';
+import "./src/config/firebase";
 
 // Import i18n to initialize localization
-import './src/localization/i18n';
+import "./src/localization/i18n";
 
-import RootNavigator from './src/navigation/RootNavigator';
-import AuthNavigator from './src/navigation/AuthNavigator';
-import { useRecordStore } from './src/store/useRecordStore';
-import { useAuthStore } from './src/store/useAuthStore';
-import { colors, spacing, fontSize, fontWeight } from './src/theme';
+import RootNavigator from "./src/navigation/RootNavigator";
+import AuthNavigator from "./src/navigation/AuthNavigator";
+import { useRecordStore } from "./src/store/useRecordStore";
+import { useAuthStore } from "./src/store/useAuthStore";
+import { colors, spacing, fontSize, fontWeight } from "./src/theme";
 
 // Ignore specific warnings (optional)
 LogBox.ignoreLogs([
-  'Non-serializable values were found in the navigation state',
-  'AsyncStorage has been extracted from react-native core',
-  '@firebase/auth',
+  "Non-serializable values were found in the navigation state",
+  "AsyncStorage has been extracted from react-native core",
+  "@firebase/auth",
 ]);
 
 /**
@@ -53,7 +60,7 @@ const App: React.FC = () => {
   // Initialize Firebase Auth listener on app start
   useEffect(() => {
     const unsubscribe = initialize();
-    
+
     // Cleanup subscription on unmount
     return () => {
       unsubscribe();
@@ -69,7 +76,9 @@ const App: React.FC = () => {
       // User logged out, cleanup record store
       cleanup();
     }
-  }, [user?.uid, isInitialized, initializeWithUser, cleanup]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Note: initializeWithUser and cleanup are stable Zustand store functions
+  }, [user?.uid, isInitialized]);
 
   // Show loading screen while Firebase auth is initializing
   if (!isInitialized && isLoading) {
@@ -97,8 +106,8 @@ const App: React.FC = () => {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <NavigationContainer>
-          <StatusBar 
-            barStyle="dark-content" 
+          <StatusBar
+            barStyle="dark-content"
             backgroundColor={colors.background.primary}
           />
           {user ? <RootNavigator /> : <AuthNavigator />}
@@ -111,16 +120,16 @@ const App: React.FC = () => {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: colors.background.primary,
-    gap: spacing['4'],
+    gap: spacing["4"],
   },
   loadingText: {
     fontSize: fontSize.md,
     fontWeight: fontWeight.medium,
     color: colors.text.secondary,
-    marginTop: spacing['4'],
+    marginTop: spacing["4"],
   },
 });
 
