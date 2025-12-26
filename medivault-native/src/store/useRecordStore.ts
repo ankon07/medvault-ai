@@ -256,6 +256,11 @@ export const useRecordStore = create<RecordState>((set, get) => ({
     if (unsubscribeLabTests) {
       unsubscribeLabTests();
     }
+
+    // Reset initialization guards so data can load on next login
+    isInitializing = false;
+    currentViewingUserId = null;
+
     set({
       records: [],
       selectedRecord: null,

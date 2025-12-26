@@ -3,7 +3,7 @@
  * Dashboard with stats, recent records, and quick actions
  */
 
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -25,6 +25,7 @@ import {
   Calendar,
   FileBadge,
   Users,
+  Menu,
 } from "lucide-react-native";
 
 import {
@@ -41,6 +42,7 @@ import {
   LanguageToggle,
   NotificationBell,
   ProfileBanner,
+  SideDrawer,
 } from "../components/common";
 import { useRecordStore } from "../store/useRecordStore";
 import { useAuthStore } from "../store/useAuthStore";
@@ -62,9 +64,12 @@ const HomeScreen: React.FC<Props> = () => {
   const navigation = useNavigation();
   const { t } = useTranslation();
 
+  // Drawer state
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
   const { records, isLoading, loadRecords, getStats } = useRecordStore();
 
-  const { user, userProfile } = useAuthStore();
+  const { user, userProfile, signOut } = useAuthStore();
 
   // Profile viewing state
   const viewingProfile = useViewingProfile();
@@ -79,6 +84,14 @@ const HomeScreen: React.FC<Props> = () => {
   // Get localized greeting
   const greetingKey = getGreetingKey();
   const greeting = t(`greeting.${greetingKey}`);
+
+  // Get user initials for avatar
+  const userInitials = displayName
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
   // Handle switching back to own profile
   const handleSwitchBack = async () => {
@@ -98,216 +111,279 @@ const HomeScreen: React.FC<Props> = () => {
     navigation.navigate("Detail", { recordId } as never);
   };
 
+  // Drawer handlers
+  const handleOpenDrawer = () => {
+    setIsDrawerOpen(true);
+  };
+
+  const handleCloseDrawer = () => {
+    setIsDrawerOpen(false);
+  };
+
+  const handleProfilePress = () => {
+    navigation.navigate("Profile" as never);
+  };
+
+  const handleSettingsPress = () => {
+    navigation.navigate("Settings" as never);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
+
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={[
-        styles.content,
-        { paddingTop: insets.top + spacing["4"] },
-      ]}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl
-          refreshing={isLoading}
-          onRefresh={loadRecords}
-          tintColor={colors.primary[600]}
-        />
-      }
-    >
-      {/* Notification Bell & Language Toggle */}
-      <View style={styles.languageToggleContainer}>
-        <NotificationBell />
-        <LanguageToggle size="medium" />
-      </View>
+    <>
+      <View style={styles.container}>
+        {/* Menu Button - Fixed Position */}
+        <TouchableOpacity
+          style={[styles.menuButton, { top: insets.top + spacing["4"] }]}
+          onPress={handleOpenDrawer}
+          activeOpacity={0.8}
+        >
+          <Menu size={24} color={colors.white} />
+        </TouchableOpacity>
 
-      {/* Hero Card */}
-      <View style={styles.heroCard}>
-        <View style={styles.heroGlow} />
-        <View style={styles.heroContent}>
-          <View style={styles.heroHeader}>
-            <View>
-              <Text style={styles.heroGreeting}>{greeting},</Text>
-              <Text style={styles.heroName}>{displayName}</Text>
-            </View>
-            <View style={styles.heroIcon}>
-              <Activity size={24} color={colors.white} />
-            </View>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[
+            styles.content,
+            { paddingTop: insets.top + spacing["4"] },
+          ]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={isLoading}
+              onRefresh={loadRecords}
+              tintColor={colors.primary[600]}
+            />
+          }
+        >
+          {/* Notification Bell & Language Toggle - Right aligned */}
+          <View style={styles.topRightContainer}>
+            <NotificationBell />
+            <LanguageToggle size="medium" />
           </View>
 
-          {/* Latest Update */}
-          <View style={styles.latestUpdate}>
-            <View style={styles.latestIcon}>
-              <FileBadge size={20} color={colors.white} />
-            </View>
-            <View style={styles.latestText}>
-              <Text style={styles.latestLabel}>{t("home.latestUpdate")}</Text>
-              <Text style={styles.latestTitle} numberOfLines={1}>
-                {records[0]?.analysis.title || t("home.noRecordsYet")}
-              </Text>
-            </View>
-          </View>
+          {/* Hero Card */}
+          <View style={styles.heroCard}>
+            <View style={styles.heroGlow} />
+            <View style={styles.heroContent}>
+              <View style={styles.heroHeader}>
+                <View>
+                  <Text style={styles.heroGreeting}>{greeting},</Text>
+                  <Text style={styles.heroName}>{displayName}</Text>
+                </View>
+                <View style={styles.heroIcon}>
+                  <Activity size={24} color={colors.white} />
+                </View>
+              </View>
 
-          {/* Scan Button */}
-          <TouchableOpacity
-            style={styles.scanButton}
-            onPress={handleScan}
-            activeOpacity={0.9}
-          >
-            <Camera size={20} color={colors.primary[700]} />
-            <Text style={styles.scanButtonText}>
-              {t("home.scanNewDocument")}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+              {/* Latest Update */}
+              <View style={styles.latestUpdate}>
+                <View style={styles.latestIcon}>
+                  <FileBadge size={20} color={colors.white} />
+                </View>
+                <View style={styles.latestText}>
+                  <Text style={styles.latestLabel}>
+                    {t("home.latestUpdate")}
+                  </Text>
+                  <Text style={styles.latestTitle} numberOfLines={1}>
+                    {records[0]?.analysis.title || t("home.noRecordsYet")}
+                  </Text>
+                </View>
+              </View>
 
-      {/* Profile Banner - Show when viewing another user's profile */}
-      {viewingProfile.isViewing && viewingProfile.userName && (
-        <ProfileBanner
-          memberName={viewingProfile.userName}
-          onSwitchBack={handleSwitchBack}
-        />
-      )}
-
-      {/* Quick Access Stats */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t("home.quickAccess")}</Text>
-        <View style={styles.statsGrid}>
-          <TouchableOpacity
-            style={styles.statCard}
-            onPress={() => navigation.navigate("History" as never)}
-            activeOpacity={0.8}
-          >
-            <View
-              style={[styles.statIcon, { backgroundColor: colors.orange[50] }]}
-            >
-              <FileText size={22} color={colors.orange[500]} />
-            </View>
-            <Text style={styles.statNumber}>{stats.totalRecords}</Text>
-            <Text style={styles.statLabel}>{t("home.notebook")}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.statCard}
-            onPress={() => navigation.navigate("TestAnalyzer" as never)}
-            activeOpacity={0.8}
-          >
-            <View
-              style={[styles.statIcon, { backgroundColor: colors.purple[50] }]}
-            >
-              <FlaskConical size={22} color={colors.purple[500]} />
-            </View>
-            <Text style={styles.statNumber}>{stats.labTestRecords}</Text>
-            <Text style={styles.statLabel}>{t("home.testAnalyzer")}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.statCard}
-            onPress={() => navigation.navigate("FamilyMembers" as never)}
-            activeOpacity={0.8}
-          >
-            <View
-              style={[styles.statIcon, { backgroundColor: colors.green[100] }]}
-            >
-              <Users size={22} color={colors.green[600]} />
-            </View>
-            <Text style={styles.statNumber}>•••</Text>
-            <Text style={styles.statLabel}>{t("home.familyMembers")}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.statCard, styles.wideCard]}
-            onPress={() => navigation.navigate("Meds" as never)}
-            activeOpacity={0.8}
-          >
-            <View style={styles.wideCardContent}>
-              <View
-                style={[styles.statIcon, { backgroundColor: colors.blue[50] }]}
+              {/* Scan Button */}
+              <TouchableOpacity
+                style={styles.scanButton}
+                onPress={handleScan}
+                activeOpacity={0.9}
               >
-                <Pill size={22} color={colors.blue[500]} />
-              </View>
-              <View style={styles.wideCardText}>
-                <Text style={styles.statNumber}>{stats.totalMedications}</Text>
-                <Text style={styles.statLabel}>
-                  {t("home.activeMedicines")}
+                <Camera size={20} color={colors.primary[700]} />
+                <Text style={styles.scanButtonText}>
+                  {t("home.scanNewDocument")}
                 </Text>
-              </View>
-              <View style={styles.wideCardArrow}>
-                <ChevronRight size={20} color={colors.white} />
-              </View>
+              </TouchableOpacity>
             </View>
-          </TouchableOpacity>
-        </View>
-      </View>
+          </View>
 
-      {/* Recent History */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>{t("home.recentHistory")}</Text>
-          <TouchableOpacity
-            onPress={() => navigation.navigate("History" as never)}
-          >
-            <Text style={styles.seeAllText}>{t("common.seeAll")}</Text>
-          </TouchableOpacity>
-        </View>
+          {/* Profile Banner - Show when viewing another user's profile */}
+          {viewingProfile.isViewing && viewingProfile.userName && (
+            <ProfileBanner
+              memberName={viewingProfile.userName}
+              onSwitchBack={handleSwitchBack}
+            />
+          )}
 
-        {recentRecords.length === 0 ? (
-          <EmptyState
-            icon={<Camera size={24} color={colors.gray[300]} />}
-            title={t("home.noRecordsFound")}
-            message={t("home.scanFirstDocument")}
-          />
-        ) : (
-          <View style={styles.recordsList}>
-            {recentRecords.map((record) => {
-              const config = DOCUMENT_TYPE_CONFIG[record.analysis.documentType];
-              return (
-                <TouchableOpacity
-                  key={record.id}
-                  style={styles.recordCard}
-                  onPress={() => handleViewRecord(record.id)}
-                  activeOpacity={0.8}
+          {/* Quick Access Stats */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{t("home.quickAccess")}</Text>
+            <View style={styles.statsGrid}>
+              <TouchableOpacity
+                style={styles.statCard}
+                onPress={() => navigation.navigate("History" as never)}
+                activeOpacity={0.8}
+              >
+                <View
+                  style={[
+                    styles.statIcon,
+                    { backgroundColor: colors.orange[50] },
+                  ]}
                 >
+                  <FileText size={22} color={colors.orange[500]} />
+                </View>
+                <Text style={styles.statNumber}>{stats.totalRecords}</Text>
+                <Text style={styles.statLabel}>{t("home.notebook")}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.statCard}
+                onPress={() => navigation.navigate("TestAnalyzer" as never)}
+                activeOpacity={0.8}
+              >
+                <View
+                  style={[
+                    styles.statIcon,
+                    { backgroundColor: colors.purple[50] },
+                  ]}
+                >
+                  <FlaskConical size={22} color={colors.purple[500]} />
+                </View>
+                <Text style={styles.statNumber}>{stats.labTestRecords}</Text>
+                <Text style={styles.statLabel}>{t("home.testAnalyzer")}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.statCard}
+                onPress={() => navigation.navigate("FamilyMembers" as never)}
+                activeOpacity={0.8}
+              >
+                <View
+                  style={[
+                    styles.statIcon,
+                    { backgroundColor: colors.green[100] },
+                  ]}
+                >
+                  <Users size={22} color={colors.green[600]} />
+                </View>
+                <Text style={styles.statNumber}>•••</Text>
+                <Text style={styles.statLabel}>{t("home.familyMembers")}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.statCard, styles.wideCard]}
+                onPress={() => navigation.navigate("Meds" as never)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.wideCardContent}>
                   <View
                     style={[
-                      styles.recordIcon,
-                      { backgroundColor: config.bgColor },
+                      styles.statIcon,
+                      { backgroundColor: colors.blue[50] },
                     ]}
                   >
-                    <Text
-                      style={[
-                        styles.recordIconText,
-                        { color: config.textColor },
-                      ]}
-                    >
-                      {config.label}
+                    <Pill size={22} color={colors.blue[500]} />
+                  </View>
+                  <View style={styles.wideCardText}>
+                    <Text style={styles.statNumber}>
+                      {stats.totalMedications}
+                    </Text>
+                    <Text style={styles.statLabel}>
+                      {t("home.activeMedicines")}
                     </Text>
                   </View>
-                  <View style={styles.recordContent}>
-                    <Text style={styles.recordTitle} numberOfLines={1}>
-                      {record.analysis.title}
-                    </Text>
-                    <View style={styles.recordMeta}>
-                      <Calendar size={12} color={colors.gray[400]} />
-                      <Text style={styles.recordDate}>
-                        {record.analysis.date}
-                      </Text>
-                      <Text style={styles.recordDot}>•</Text>
-                      <Text style={styles.recordDoctor} numberOfLines={1}>
-                        {record.analysis.doctorName || "Unknown Doctor"}
-                      </Text>
-                    </View>
+                  <View style={styles.wideCardArrow}>
+                    <ChevronRight size={20} color={colors.white} />
                   </View>
-                  <View style={styles.recordArrow}>
-                    <ChevronRight size={16} color={colors.gray[400]} />
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
-        )}
+
+          {/* Recent History */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>{t("home.recentHistory")}</Text>
+              <TouchableOpacity
+                onPress={() => navigation.navigate("History" as never)}
+              >
+                <Text style={styles.seeAllText}>{t("common.seeAll")}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {recentRecords.length === 0 ? (
+              <EmptyState
+                icon={<Camera size={24} color={colors.gray[300]} />}
+                title={t("home.noRecordsFound")}
+                message={t("home.scanFirstDocument")}
+              />
+            ) : (
+              <View style={styles.recordsList}>
+                {recentRecords.map((record) => {
+                  const config =
+                    DOCUMENT_TYPE_CONFIG[record.analysis.documentType];
+                  return (
+                    <TouchableOpacity
+                      key={record.id}
+                      style={styles.recordCard}
+                      onPress={() => handleViewRecord(record.id)}
+                      activeOpacity={0.8}
+                    >
+                      <View
+                        style={[
+                          styles.recordIcon,
+                          { backgroundColor: config.bgColor },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.recordIconText,
+                            { color: config.textColor },
+                          ]}
+                        >
+                          {config.label}
+                        </Text>
+                      </View>
+                      <View style={styles.recordContent}>
+                        <Text style={styles.recordTitle} numberOfLines={1}>
+                          {record.analysis.title}
+                        </Text>
+                        <View style={styles.recordMeta}>
+                          <Calendar size={12} color={colors.gray[400]} />
+                          <Text style={styles.recordDate}>
+                            {record.analysis.date}
+                          </Text>
+                          <Text style={styles.recordDot}>•</Text>
+                          <Text style={styles.recordDoctor} numberOfLines={1}>
+                            {record.analysis.doctorName || "Unknown Doctor"}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.recordArrow}>
+                        <ChevronRight size={16} color={colors.gray[400]} />
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        </ScrollView>
       </View>
-    </ScrollView>
+
+      {/* Side Drawer */}
+      <SideDrawer
+        visible={isDrawerOpen}
+        onClose={handleCloseDrawer}
+        userName={displayName}
+        userEmail={user?.email || ""}
+        userInitials={userInitials}
+        onProfilePress={handleProfilePress}
+        onSettingsPress={handleSettingsPress}
+        onSignOut={handleSignOut}
+      />
+    </>
   );
 };
 
@@ -316,18 +392,36 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background.primary,
   },
+  scrollView: {
+    flex: 1,
+  },
   content: {
     padding: spacing["6"],
     paddingBottom: spacing["24"],
   },
 
-  // Language Toggle
-  languageToggleContainer: {
+  // Menu Button
+  menuButton: {
+    position: "absolute",
+    left: spacing["6"],
+    zIndex: 10,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.primary[600],
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadows.lg,
+  },
+
+  // Top Right Container (Notification Bell & Language Toggle)
+  topRightContainer: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     alignItems: "center",
     marginBottom: spacing["4"],
     gap: spacing["3"],
+    paddingLeft: spacing["16"], // Add padding to avoid hamburger menu
   },
 
   // Hero

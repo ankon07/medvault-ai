@@ -12,3 +12,4 @@ export { FamilyMemberSelector } from "./FamilyMemberSelector";
 export { default as LanguageToggle } from "./LanguageToggle";
 export { NotificationBell } from "./NotificationBell";
 export { ProfileBanner } from "./ProfileBanner";
+export { SideDrawer } from "./SideDrawer";

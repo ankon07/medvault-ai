@@ -29,6 +29,8 @@ import RootNavigator from "./src/navigation/RootNavigator";
 import AuthNavigator from "./src/navigation/AuthNavigator";
 import { useRecordStore } from "./src/store/useRecordStore";
 import { useAuthStore } from "./src/store/useAuthStore";
+import { useNotificationStore } from "./src/store/useNotificationStore";
+import { useFamilyStore } from "./src/store/useFamilyStore";
 import { colors, spacing, fontSize, fontWeight } from "./src/theme";
 import {
   registerBackgroundTask,
@@ -41,6 +43,12 @@ LogBox.ignoreLogs([
   "Non-serializable values were found in the navigation state",
   "AsyncStorage has been extracted from react-native core",
   "@firebase/auth",
+  "permission_denied", // Expected during sign out - Firebase subscriptions cleanup
+  "Notification subscription error",
+  "Notifications subscription error",
+  "Firebase subscription error",
+  "Firebase lab test records subscription error",
+  "Firebase taken medications subscription error",
 ]);
 
 /**
@@ -59,8 +67,9 @@ const LoadingScreen: React.FC<{ message?: string }> = ({ message }) => (
  * Sets up providers, Firebase initialization, and navigation container
  */
 const App: React.FC = () => {
-  const { initializeWithUser, cleanup, isSyncing } = useRecordStore();
-  const { initialize, isInitialized, isLoading, user } = useAuthStore();
+  const { initializeWithUser, isSyncing } = useRecordStore();
+  const { initialize, isInitialized, isLoading, isSigningOut, user } =
+    useAuthStore();
 
   // Initialize Firebase Auth listener on app start
   useEffect(() => {
@@ -90,16 +99,14 @@ const App: React.FC = () => {
         console.error("Failed to set current user ID:", error);
       });
     } else if (isInitialized && !user) {
-      // User logged out, cleanup record store
-      cleanup();
-
+      // User logged out - cleanup is now handled in authStore.signOut()
       // Clear user ID for background task
       clearCurrentUserId().catch((error) => {
         console.error("Failed to clear current user ID:", error);
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    // Note: initializeWithUser and cleanup are stable Zustand store functions
+    // Note: initializeWithUser is a stable Zustand store function
   }, [user?.uid, isInitialized]);
 
   // Show loading screen while Firebase auth is initializing
@@ -119,6 +126,17 @@ const App: React.FC = () => {
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
           <LoadingScreen message="Syncing your data..." />
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    );
+  }
+
+  // Show signing out indicator to prevent flash of app screen
+  if (isSigningOut) {
+    return (
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <LoadingScreen message="Signing out..." />
         </SafeAreaProvider>
       </GestureHandlerRootView>
     );
