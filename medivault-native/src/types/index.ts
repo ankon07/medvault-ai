@@ -74,7 +74,11 @@ export interface MedicalRecord {
 /**
  * Document type classification
  */
-export type DocumentType = 'Prescription' | 'Lab Report' | 'Diagnosis' | 'Other';
+export type DocumentType =
+  | "Prescription"
+  | "Lab Report"
+  | "Diagnosis"
+  | "Other";
 
 /**
  * Navigation route parameters
@@ -164,7 +168,7 @@ export interface CalendarDay {
  */
 export interface TimeSlot {
   time: string;
-  period: 'AM' | 'PM';
+  period: "AM" | "PM";
   medications: MedicationWithSource[];
   label: string;
 }
@@ -182,7 +186,7 @@ export interface TestParameter {
   /** Normal/reference range */
   referenceRange: string;
   /** Status compared to reference */
-  status: 'normal' | 'low' | 'high' | 'critical';
+  status: "normal" | "low" | "high" | "critical";
   /** Interpretation of the result */
   interpretation?: string;
 }
@@ -220,7 +224,12 @@ export interface LabTestAnalysis {
   /** Recommendations based on results */
   recommendations: string[];
   /** Overall condition assessment */
-  conditionAssessment: 'Excellent' | 'Good' | 'Fair' | 'Needs Attention' | 'Critical';
+  conditionAssessment:
+    | "Excellent"
+    | "Good"
+    | "Fair"
+    | "Needs Attention"
+    | "Critical";
   /** Detailed explanation of condition */
   conditionExplanation: string;
 }
@@ -292,7 +301,7 @@ export interface TakenMedication {
   /** Name of the medication */
   medicationName: string;
   /** Time slot when medication was taken */
-  timeSlot: 'morning' | 'afternoon' | 'evening';
+  timeSlot: "morning" | "afternoon" | "evening";
   /** Date of intake (YYYY-MM-DD format) */
   date: string;
   /** Unix timestamp when medication was marked as taken */
@@ -316,7 +325,7 @@ export interface FamilyMember {
   /** Date of birth */
   dateOfBirth?: string;
   /** Gender */
-  gender?: 'Male' | 'Female' | 'Other';
+  gender?: "Male" | "Female" | "Other";
   /** Blood group */
   bloodGroup?: string;
   /** Avatar image (base64 or URL) */
@@ -343,4 +352,100 @@ export interface FamilyMember {
 export interface FamilyMemberWithColor extends FamilyMember {
   /** Avatar background color */
   avatarColor: string;
+}
+
+/**
+ * Family group structure
+ */
+export interface Family {
+  /** Unique family identifier */
+  id: string;
+  /** User ID of the family owner */
+  ownerId: string;
+  /** Family name (optional) */
+  name?: string;
+  /** Created timestamp */
+  createdAt: number;
+  /** Map of user IDs to their roles in the family */
+  members: Record<string, FamilyMemberRole>;
+}
+
+/**
+ * Family member role in a family
+ */
+export interface FamilyMemberRole {
+  /** Role type */
+  role: "owner" | "member";
+  /** User email */
+  email: string;
+  /** User display name */
+  displayName?: string;
+  /** Timestamp when member joined */
+  joinedAt: number;
+}
+
+/**
+ * Family invitation request
+ */
+export interface FamilyRequest {
+  /** Unique request identifier */
+  id: string;
+  /** User ID who sent the request */
+  fromUserId: string;
+  /** Name of user who sent the request */
+  fromUserName: string;
+  /** Email of user who sent the request */
+  fromUserEmail: string;
+  /** Email of the invited person */
+  toEmail: string;
+  /** User ID of invited person (if they exist) */
+  toUserId?: string;
+  /** Family ID */
+  familyId: string;
+  /** Request status */
+  status: "pending" | "accepted" | "declined" | "expired";
+  /** Created timestamp */
+  createdAt: number;
+  /** Expiration timestamp (7 days) */
+  expiresAt: number;
+}
+
+/**
+ * In-app notification
+ */
+export interface Notification {
+  /** Unique notification identifier */
+  id: string;
+  /** Notification type */
+  type:
+    | "family_request"
+    | "request_accepted"
+    | "request_declined"
+    | "family_member_left"
+    | "medicine_taken"
+    | "medicine_missed";
+  /** Notification title */
+  title: string;
+  /** Notification message */
+  message: string;
+  /** Additional data for the notification */
+  data: Record<string, any>;
+  /** Whether notification has been read */
+  read: boolean;
+  /** Created timestamp */
+  createdAt: number;
+}
+
+/**
+ * User's family status
+ */
+export interface UserFamilyStatus {
+  /** Whether user is in a family */
+  hasFamily: boolean;
+  /** Family ID if in a family */
+  familyId?: string;
+  /** User's role in the family */
+  role?: "owner" | "member";
+  /** Number of family members */
+  memberCount: number;
 }

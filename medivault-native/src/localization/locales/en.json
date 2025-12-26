@@ -300,5 +300,17 @@
     "thu": "Thu",
     "fri": "Fri",
     "sat": "Sat"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "noNotifications": "No notifications yet",
+    "markAllRead": "Mark all as read",
+    "allMarkedAsRead": "All notifications marked as read",
+    "familyRequest": "Family Invitation",
+    "checkFamilyScreen": "Check the Family Members screen to accept or decline",
+    "justNow": "Just now",
+    "minutesAgo": "{{count}}m ago",
+    "hoursAgo": "{{count}}h ago",
+    "daysAgo": "{{count}}d ago"
   }
 }
