@@ -509,3 +509,42 @@ export interface UserFamilyStatus {
   /** Number of family members */
   memberCount: number;
 }
+
+/**
+ * App settings interface
+ */
+export interface AppSettings {
+  /** User ID */
+  userId: string;
+
+  // Notifications
+  pushNotificationsEnabled: boolean;
+  medicationRemindersEnabled: boolean;
+  familyActivityNotificationsEnabled: boolean;
+  notificationSoundEnabled: boolean;
+
+  // Privacy & Security
+  biometricLoginEnabled: boolean;
+  autoLockTimeout: "immediate" | "1min" | "5min" | "never";
+  requireAuthForSensitiveData: boolean;
+
+  // Medical Settings
+  defaultReminderMinutes: number;
+  autoAddToCalendar: boolean;
+  medicationTrackingEnabled: boolean;
+  aiSuggestionsEnabled: boolean;
+
+  // General
+  language: "en" | "bn";
+  dateFormat: "DD/MM/YYYY" | "MM/DD/YYYY";
+  timeFormat: "12h" | "24h";
+  darkModeEnabled: boolean;
+  showBadgeCount: boolean;
+
+  // Data & Storage
+  cloudSyncEnabled: boolean;
+
+  // Timestamps
+  createdAt: string;
+  updatedAt: string;
+}
